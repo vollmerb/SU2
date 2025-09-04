@@ -1194,7 +1194,8 @@ private:
   su2double *Gas_Composition,               /*!< \brief Initial mass fractions of flow [dimensionless]. */
   *Supercatalytic_Wall_Composition,         /*!< \brief Supercatalytic wall mass fractions [dimensionless]. */
   pnorm_heat;                               /*!< \brief pnorm for heat-flux. */
-  bool frozen,                              /*!< \brief Flag for determining if mixture is frozen. */
+  bool frozen;                              /*!< \brief Flag for determining if mixture is frozen. */
+  bool thermal_equil,                       /*!< \brief Flag for determining if thermal equilibrium. */
   ionization,                               /*!< \brief Flag for determining if free electron gas is in the mixture. */
   vt_transfer_res_limit,                    /*!< \brief Flag for determining if residual limiting for source term VT-transfer is used. */
   monoatomic,                               /*!< \brief Flag for monoatomic mixture. */
@@ -5357,6 +5358,11 @@ public:
    * \brief Indicates whether the flow is frozen (chemistry deactivated).
    */
   bool GetFrozen(void) const { return frozen; }
+  
+  /*!
+   * \brief Indicates whether the flow is theramlly frozen (single temperature model).
+   */
+  bool GetThermal_Equil(void) const { return thermal_equil; }
 
   /*!
    * \brief Indicates whether electron gas is present in the gas mixture.

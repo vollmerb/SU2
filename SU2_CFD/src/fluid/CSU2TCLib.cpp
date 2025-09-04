@@ -2103,6 +2103,14 @@ vector<su2double>& CSU2TCLib::ComputeTemperatures(vector<su2double>& val_rhos, s
   }
 
   T = (rhoE - rhoEve - rhoE_f + rhoE_ref - rhoEvel) / rhoCvtr;
+  
+  //if thermal_equilibrium, Tve=T
+  if(thermal_equil){
+    temperatures[0] = T;
+    temperatures[1] = T;
+
+    return temperatures;
+  }
 
   /*--- Set temperature clipping values ---*/
   const su2double Tmin   = 50.0; const su2double Tmax   = 8E4;

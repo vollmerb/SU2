@@ -40,6 +40,7 @@ class CNEMOGas : public CFluidModel {
 protected:
 
   bool frozen,                           /*!< \brief Indicates if mixture is frozen. */
+  thermal_equil,                         /*!< \brief Indicates if mixture is in thermal equilibrium. */
   ionization;                            /*!< \brief Presence of charged species in gas mixture. */
 
   string gas_model;                      /*!< \brief String gas model. */
