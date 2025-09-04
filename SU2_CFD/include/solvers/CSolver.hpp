@@ -969,6 +969,13 @@ public:
                                          CConfig *config,
                                          unsigned short val_marker) { }
 
+  inline virtual void BC_Isothermal_Wall_Blowing(CGeometry *geometry,
+                                         CSolver **solver_container,
+                                         CNumerics *conv_numerics,
+                                         CNumerics *visc_numerics,
+                                         CConfig *config,
+                                         unsigned short val_marker) { }
+
   /*!
    * \brief A virtual member.
    * \param[in] geometry - Geometrical definition of the problem.

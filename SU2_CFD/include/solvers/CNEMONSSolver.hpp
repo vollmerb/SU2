@@ -173,6 +173,8 @@ public:
   void BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics,
                           CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) override;
 
+  void BC_Isothermal_Wall_Blowing(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics,
+                          CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) override;
   /*!
    * \brief Impose the Navier-Stokes boundary condition (strong).
    * \param[in] geometry - Geometrical definition of the problem.

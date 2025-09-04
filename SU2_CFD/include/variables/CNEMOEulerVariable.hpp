@@ -226,6 +226,8 @@ class CNEMOEulerVariable : public CFlowVariable {
    */
   inline su2double GetEnergy(unsigned long iPoint) const final { return Solution(iPoint,nSpecies+nDim)/Primitive(iPoint,RHO_INDEX); }
 
+  inline su2double GetEnergyVe(unsigned long iPoint) const { return Solution(iPoint,nSpecies+nDim+1); }
+
   /*!
    * \brief Get the temperature of the flow.
    * \return Value of the temperature of the flow.
@@ -418,6 +420,18 @@ class CNEMOEulerVariable : public CFlowVariable {
    */
   inline void SetVel_ResTruncError_Zero(unsigned long iPoint) final {
     for (unsigned long iDim = 0; iDim < nDim; iDim++) Res_TruncError(iPoint,nSpecies+iDim) = 0.0;
+  }
+
+  /*!
+   * \brief Set a dirichlet boundary condition on the boundary state
+   * \param[in] iPoint - Point index.
+   * \param[in] val_vector - Pointer to the vector.
+   */
+  inline void SetSolutionVec(unsigned long iPoint, const su2double *val_vector) {
+    for (unsigned long iDim = 0; iDim < nVar; iDim++){
+      Solution(iPoint, iDim) = val_vector[iDim]; //enforce current solution
+      Solution_Old(iPoint, iDim) = val_vector[iDim]; //enforce old solution - is this needed?
+    }
   }
 
 };
