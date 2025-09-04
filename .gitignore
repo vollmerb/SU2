@@ -98,7 +98,3 @@ ninja
 # Ignore vscode folder
 .vscode/
 
-#ignore precice adapter
-SU2_CFD/src/python_wrapper_structure.cpp
-SU2_CFD/include/drivers/CDriver.hpp
-
