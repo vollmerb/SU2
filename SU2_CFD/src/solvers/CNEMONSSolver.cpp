@@ -534,44 +534,49 @@ void CNEMONSSolver::BC_Isothermal_Wall_Blowing(CGeometry *geometry, CSolver **so
 
     const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
     const auto Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
+    su2double* Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
+    su2double Area = GeometryToolbox::Norm(nDim, Normal);
 
-    //Get velocity
-    su2double uwall[MAXNDIM] = {0.0};
-    uwall[1] = geometry->GetCustomBoundaryVelocity(val_marker, iVertex);
-
-    //Get mass fraction
-    su2double y0 = nodes->GetMassFraction(iPoint, 0);
-    su2double y1 = 1-y0;
-    su2double MW_mix = 1/(y0/Ms[0] + y1/Ms[1]);
-    su2double R_mix = Ru/MW_mix;
-
-    //Set state
+    //Get velocity - need to make wall-normal
+    su2double uwall[nDim] = {0.0};
+    if (config->GetMarker_All_PyCustom(val_marker)) {
+    	su2double Vn = geometry->GetCustomBoundaryVelocity(val_marker, iVertex);
+    	for (auto iVar = 0; iVar < nDim; iVar++) {
+    		uwall[iVar] = Vn*Normal[iVar]/Area;
+    	}
+    	//std::cout << Normal[0]/Area << " " << Normal[1]/Area << std::endl;
+    }
+				
+		//Get mass fractions
+		su2double mass_frac[nSpecies] = {0.0};
+    for (auto iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
+    	mass_frac[iSpecies] = nodes->GetMassFraction(iPoint, iSpecies);
+    }
+        
+    //Set thermodynamic state
     su2double pressure = nodes->GetPressure(Point_Normal); //ZPG
     su2double temperature = Twall; //isothermal
-    // su2double temperature = nodes->GetTemperature(Point_Normal); //adiabatic
-    su2double density = pressure/(temperature*R_mix);
-    su2double density0 = y0*density;
-    su2double density1 = y1*density;
+    FluidModel->SetTDStatePTTv(pressure, &mass_frac[0], temperature, temperature);
+    su2double density = FluidModel->GetDensity();
+    const auto& Energies = FluidModel->ComputeMixtureEnergies();
 
-    /*--- Set the fluidmodel and recompute energies ---*/
-    // su2double rhos[nSpecies] = {density0, density1};
-    // FluidModel->SetTDStateRhosTTv( rhos, temperature, temperature);
-    // const auto& Energies = FluidModel->ComputeMixtureEnergies();
-    // su2double energy = Energies[0];
-    // su2double energyve = Energies[1];
-
-    //Need to update with cp...
-    su2double energy = pressure/Gamma_Minus_One + 0.5*density*uwall[1]*uwall[1];
-    su2double energyve = nodes->GetEnergyVe(Point_Normal);
-
+		
+		//Set the state vector
     su2double state[nVar] = {0.0};
-    state[0] = density0;
-    state[1] = density1;
-    state[2] = density*uwall[0];
-    state[3] = density*uwall[1];
-    state[4] = energy;
-    state[4] = energyve;
+    for (auto iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
+    	state[iSpecies] = density*mass_frac[iSpecies];
+    }
+    
+    for (auto iVar = 0; iVar < nDim; iVar++) {
+    	state[iVar + nSpecies] = density*uwall[iVar];
+    }
+    
+    auto nEnergyEq = Energies.size();
+    for (auto iVar = 0; iVar < nEnergyEq; iVar++) {
+    	state[iVar + nDim + nSpecies] = density*Energies[iVar];
+    } 
     nodes->SetSolutionVec(iPoint,state);
+    //---------------------------------------------------------------------------
 
     //Enforce zero RHS
     for (auto iDim = 0u; iDim < nVar; iDim++)

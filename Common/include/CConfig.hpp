@@ -223,6 +223,8 @@ private:
   nMarker_Max,                    /*!< \brief Max number of number of markers using the grid information. */
   nMarker_CfgFile;                /*!< \brief Total number of markers using the config file (note that in
                                         parallel computations this number can be different from nMarker_All). */
+  
+  bool isothermal_blowing;        /*!< \brief Use the blowing isothermal boundary condition. */
 
   bool Inlet_From_File;         /*!< \brief True if the inlet profile is to be loaded from a file. */
   string Inlet_Filename;        /*!< \brief Filename specifying an inlet profile. */
@@ -5981,6 +5983,12 @@ public:
    * \return <code>TRUE</code> if it is a isothermal wall condition; otherwise <code>FALSE</code>.
    */
   bool GetIsothermalWall(void);
+  
+  /*!
+   * \brief Get information about the isothermal wall condition
+   * \return <code>TRUE</code> if it is a isothermal blowing wall condition; otherwise <code>FALSE</code>.
+   */
+  bool GetIsothermal_Blowing(void){ return isothermal_blowing; }
 
   /*!
    * \brief Get information about the Low Mach Preconditioning
