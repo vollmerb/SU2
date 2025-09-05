@@ -559,6 +559,13 @@ void CNEMONSSolver::BC_Isothermal_Wall_Blowing(CGeometry *geometry, CSolver **so
     FluidModel->SetTDStatePTTv(pressure, &mass_frac[0], temperature, temperature);
     su2double density = FluidModel->GetDensity();
     const auto& Energies = FluidModel->ComputeMixtureEnergies();
+    
+    //add kinetic energy
+    su2double sqvel = 0.0;
+		for (unsigned short iDim = 0; iDim < nDim; iDim++){
+		  sqvel += uwall[iDim]*uwall[iDim];
+		}
+		Energies[0] += sqvel
 
 		
 		//Set the state vector
