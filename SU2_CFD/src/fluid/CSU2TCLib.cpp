@@ -281,7 +281,83 @@ CSU2TCLib::CSU2TCLib(const CConfig* config, unsigned short val_nDim, bool viscou
       Sm_ref[0] = 107.0;
       Sk_ref[0] = 150.0;
     }
+  } else if (gas_model == "AIR-2"){
+    /*--- Check for errors in the initialization ---*/
+    if (nSpecies != 2) {
+      SU2_MPI::Error("CONFIG ERROR: nSpecies mismatch between gas model & gas composition", CURRENT_FUNCTION);
+    }
+    mf = 0.0;
+    for (iSpecies = 0; iSpecies < nSpecies; iSpecies++)
+      mf += MassFrac_Freestream[iSpecies];
+    if (mf != 1.0) {
+      SU2_MPI::Error("CONFIG ERROR: Intial gas mass fractions do not sum to 1!", CURRENT_FUNCTION);
+    }
 
+    /*--- Define parameters of the gas model ---*/
+    gamma       = 1.4;
+    nReactions  = 0;
+
+    /*--- Assign gas properties ---*/
+    // Rotational modes of energy storage
+    RotationModes[0] = 2.0;
+    RotationModes[1] = 2.0;
+    // Molar mass [kg/kmol]
+    MolarMass[0] = 2.0*14.0067;
+    MolarMass[1] = 2.0*15.9994;
+    //Characteristic vibrational temperatures
+    CharVibTemp[0] = 3395.0;
+    CharVibTemp[1] = 2239.0;
+    // Formation enthalpy: (Scalabrin values, J/kg)
+    Enthalpy_Formation[0] = 0.0;      //N2
+    Enthalpy_Formation[1] = 0.0;      //O2
+    // Reference temperature (JANAF values, [K])
+    Ref_Temperature[0] = 0.0;
+    Ref_Temperature[1] = 0.0;
+    // Blottner viscosity coefficients
+    // A                        // B                        // C
+    Blottner(0,0) = 2.68E-2;   Blottner(0,1) =  3.18E-1;  Blottner(0,2) = -1.13E1;  // N2
+    Blottner(1,0) = 4.49E-2;   Blottner(1,1) = -8.26E-2;  Blottner(1,2) = -9.20E0;  // O2
+
+
+    // Number of electron states
+    nElStates[0] = 1;//15;                    // N2
+    nElStates[1] = 1;//3;                     // N
+    for (iSpecies = 0; iSpecies < nSpecies; iSpecies++)
+      maxEl = max(maxEl, nElStates[iSpecies]);
+
+    /*--- Allocate and initialize electron data arrays ---*/
+    CharElTemp.resize(nSpecies,maxEl) = su2double(0.0);
+    ElDegeneracy.resize(nSpecies,maxEl) = su2double(1.0);
+
+    // Omega(0,0) ----------------------
+    //N2
+    Omega00(0,0,0) = -6.0614558E-03;  Omega00(0,0,1) = 1.2689102E-01;   Omega00(0,0,2) = -1.0616948E+00;  Omega00(0,0,3) = 8.0955466E+02;
+    Omega00(0,1,0) = -3.7959091E-03;  Omega00(0,1,1) = 9.5708295E-02;   Omega00(0,1,2) = -1.0070611E+00;  Omega00(0,1,3) = 8.9392313E+02;
+    //O2
+    Omega00(1,0,0) = -3.7959091E-03;  Omega00(1,0,1) = 9.5708295E-02;   Omega00(1,0,2) = -1.0070611E+00;  Omega00(1,0,3) = 8.9392313E+02;
+    Omega00(1,1,0) = -8.0682650E-04;  Omega00(1,1,1) = 1.6602480E-02;   Omega00(1,1,2) = -3.1472774E-01;  Omega00(1,1,3) = 1.4116458E+02;
+
+    // Omega(1,1) ----------------------
+    //N2
+    Omega11(0,0,0) = -7.6303990E-03;  Omega11(0,0,1) = 1.6878089E-01;   Omega11(0,0,2) = -1.4004234E+00;  Omega11(0,0,3) = 2.1427708E+03;
+    Omega11(0,1,0) = -8.0457321E-03;  Omega11(0,1,1) = 1.9228905E-01;   Omega11(0,1,2) = -1.7102854E+00;  Omega11(0,1,3) = 5.2213857E+03;
+    //O2
+    Omega11(1,0,0) = -8.0457321E-03;  Omega11(1,0,1) = 1.9228905E-01;   Omega11(1,0,2) = -1.7102854E+00;  Omega11(1,0,3) = 5.2213857E+03;
+    Omega11(1,1,0) = -6.2931612E-03;  Omega11(1,1,1) = 1.4624645E-01;   Omega11(1,1,2) = -1.3006927E+00;  Omega11(1,1,3) = 1.8066892E+03;
+
+    /*--- Catayltic wall table---*/
+    // Creation/Destruction (+1/-1), Index of monoatomic reactants.
+    CatRecombTable(0,0) =  0; CatRecombTable(0,1) = 0;
+    CatRecombTable(1,0) =  0; CatRecombTable(1,1) = 0;
+
+    /*--- Values used in the Sutherland's formula. ---*/
+    if (viscous) {
+      //F.M. White, Viscous Fluid Flow, 3rd ed., McGraw-Hill, 2006.
+      k_ref[0] = 0.0241;
+      mu_ref[0] = 1.716E-5;
+      Sm_ref[0] = 111.0;
+      Sk_ref[0] = 194.0;
+    }
   } else if (gas_model == "AIR-5"){
 
     /*--- Check for errors in the initialization ---*/
