@@ -578,7 +578,8 @@ enum ENUM_GASMODEL {
    AIR5       = 6,
    ARGON_SID  = 7,
    ONESPECIES = 8,
-   AIR2       = 9
+   AIR2       = 9,
+   CAMPHOR_AIR= 10
 };
 static const MapType<std::string, ENUM_GASMODEL> GasModel_Map = {
 MakePair("NONE", NO_MODEL)
@@ -591,6 +592,7 @@ MakePair("AIR-5", AIR5)
 MakePair("ARGON-SID",ARGON_SID)
 MakePair("ONESPECIES", ONESPECIES)
 MakePair("AIR-2", AIR2)
+MakePair("CAMPHOR-AIR", CAMPHOR_AIR)
 };
 
 /*!

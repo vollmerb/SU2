@@ -550,7 +550,8 @@ void CNEMONSSolver::BC_Isothermal_Wall_Blowing(CGeometry *geometry, CSolver **so
 		//Get mass fractions
 		su2double mass_frac[nSpecies] = {0.0};
     for (auto iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
-    	mass_frac[iSpecies] = nodes->GetMassFraction(iPoint, iSpecies);
+    	//mass_frac[iSpecies] = nodes->GetMassFraction(iPoint, iSpecies);
+    	mass_frac[iSpecies] = nodes->GetMassFraction(Point_Normal, iSpecies); //No diffusion, dcdy=0
     }
         
     //Set thermodynamic state

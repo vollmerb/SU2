@@ -294,13 +294,12 @@ CSU2TCLib::CSU2TCLib(const CConfig* config, unsigned short val_nDim, bool viscou
     }
 
     /*--- Define parameters of the gas model ---*/
-    gamma       = 1.4;
     nReactions  = 0;
 
     /*--- Assign gas properties ---*/
     // Rotational modes of energy storage
     RotationModes[0] = 2.0;
-    RotationModes[1] = 2.0;
+    RotationModes[1] = 2.0; //Used to set CV!
     // Molar mass [kg/kmol]
     MolarMass[0] = 2.0*14.0067;
     MolarMass[1] = 2.0*15.9994;
@@ -320,8 +319,8 @@ CSU2TCLib::CSU2TCLib(const CConfig* config, unsigned short val_nDim, bool viscou
 
 
     // Number of electron states
-    nElStates[0] = 1;//15;                    // N2
-    nElStates[1] = 1;//3;                     // N
+    nElStates[0] = 1;
+    nElStates[1] = 1;
     for (iSpecies = 0; iSpecies < nSpecies; iSpecies++)
       maxEl = max(maxEl, nElStates[iSpecies]);
 
@@ -349,6 +348,72 @@ CSU2TCLib::CSU2TCLib(const CConfig* config, unsigned short val_nDim, bool viscou
     // Creation/Destruction (+1/-1), Index of monoatomic reactants.
     CatRecombTable(0,0) =  0; CatRecombTable(0,1) = 0;
     CatRecombTable(1,0) =  0; CatRecombTable(1,1) = 0;
+
+    /*--- Values used in the Sutherland's formula. ---*/
+    if (viscous) {
+      //F.M. White, Viscous Fluid Flow, 3rd ed., McGraw-Hill, 2006.
+      k_ref[0] = 0.0241;
+      mu_ref[0] = 1.716E-5;
+      Sm_ref[0] = 111.0;
+      Sk_ref[0] = 194.0;
+    }
+  } else if (gas_model == "CAMPHOR-AIR"){
+    /*--- Check for errors in the initialization ---*/
+    if (nSpecies != 2) {
+      SU2_MPI::Error("CONFIG ERROR: nSpecies mismatch between gas model & gas composition", CURRENT_FUNCTION);
+    }
+    mf = 0.0;
+    for (iSpecies = 0; iSpecies < nSpecies; iSpecies++)
+      mf += MassFrac_Freestream[iSpecies];
+    if (mf != 1.0) {
+      SU2_MPI::Error("CONFIG ERROR: Intial gas mass fractions do not sum to 1!", CURRENT_FUNCTION);
+    }
+    
+    //NOTE: This model uses quasi-physical rotational modes to set constant Cv
+
+    /*--- Define parameters of the gas model ---*/
+    nReactions  = 0;
+
+    /*--- Assign gas properties ---*/
+    // Rotational modes of energy storage
+    RotationModes[0] = 20.5935771*2; //Used to set Cv (Cv = (3/2+x)*R, x = Cv/R-1.5)
+    RotationModes[1] = 2.0; 
+    
+    // Molar mass [kg/kmol]
+    MolarMass[0] = 152.233;
+    MolarMass[1] = 28.96;
+    
+    //Characteristic vibrational temperatures
+    CharVibTemp[0] = 0.0; //All vibration effects accounted for in rotational mode
+    CharVibTemp[1] = 3000.0; //Air
+    
+    // Formation enthalpy: (Scalabrin values, J/kg)
+    Enthalpy_Formation[0] = 0.0;      //Camphor
+    Enthalpy_Formation[1] = 0.0;      //Air
+    
+    // Reference temperature (JANAF values, [K])
+    Ref_Temperature[0] = 298.0;
+    Ref_Temperature[1] = 298.0;
+    
+    // Blottner viscosity coefficients (From LJ-CE curve fit 0.3<T*<40) [LJ is good up to 400]
+    // A                        // B                        // C
+    Blottner(0,0) = -0.01646451;   Blottner(0,1) = 0.9561631;  Blottner(0,2) = -14.39603746;  // Camphor
+    Blottner(1,0) = -0.01646099;   Blottner(1,1) =  0.89826157;  Blottner(1,2) = -13.19198667;  // Air
+    
+
+    // Number of electron states
+    nElStates[0] = 1;
+    nElStates[1] = 1;
+    for (iSpecies = 0; iSpecies < nSpecies; iSpecies++)
+      maxEl = max(maxEl, nElStates[iSpecies]);
+
+    /*--- Allocate and initialize electron data arrays ---*/
+    CharElTemp.resize(nSpecies,maxEl) = su2double(0.0);
+    ElDegeneracy.resize(nSpecies,maxEl) = su2double(1.0);
+
+    // Omega(0,0) ---------------------- (From LJ-CE curve fit 0.3<T*<40) [LJ is good up to 400]
+    Omega00(0,1,0) = 0.01285226;  Omega00(0,1,1) = -0.22135677;   Omega00(0,1,2) = 0.90017347;  Omega00(0,1,3) = 86.38373602101797; //Camphor-Air
+    Omega00(1,0,0) = Omega00(0,1,0);  Omega00(1,0,1) = Omega00(0,1,1);   Omega00(1,0,2) = Omega00(0,1,2);  Omega00(1,0,3) = Omega00(0,1,3); //Symmetric
 
     /*--- Values used in the Sutherland's formula. ---*/
     if (viscous) {
