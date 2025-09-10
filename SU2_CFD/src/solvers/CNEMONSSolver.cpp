@@ -536,24 +536,42 @@ void CNEMONSSolver::BC_Isothermal_Wall_Blowing(CGeometry *geometry, CSolver **so
     const auto Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
     su2double* Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
     su2double Area = GeometryToolbox::Norm(nDim, Normal);
+    
+    /*--- Compute distance between wall & normal neighbor ---*/
+    const auto Coord_i = geometry->nodes->GetCoord(iPoint);
+    const auto Coord_j = geometry->nodes->GetCoord(Point_Normal);
+    su2double dist_ij = GeometryToolbox::Distance(nDim, Coord_i, Coord_j);
+		
+		//Get mass-flux
+		su2double mflux = 0.0;
+		if (config->GetMarker_All_PyCustom(val_marker)) {
+    	mflux = geometry->GetCustomBoundaryVelocity(val_marker, iVertex);
+    }
 
-    //Get velocity - need to make wall-normal
+    //Set wall-normal velocity
+    su2double density_old = nodes->GetDensity(iPoint);
     su2double uwall[nDim] = {0.0};
-    if (config->GetMarker_All_PyCustom(val_marker)) {
-    	su2double Vn = geometry->GetCustomBoundaryVelocity(val_marker, iVertex);
-    	for (auto iVar = 0; iVar < nDim; iVar++) {
-    		uwall[iVar] = Vn*Normal[iVar]/Area;
-    	}
-    	//std::cout << Normal[0]/Area << " " << Normal[1]/Area << std::endl;
+    su2double Vn = mflux/density_old;
+    for (auto iVar = 0; iVar < nDim; iVar++) {
+    	uwall[iVar] = Vn*Normal[iVar]/Area;
     }
-				
-		//Get mass fractions
+		
+			
+		//Set wall mass fractions from diffusion
 		su2double mass_frac[nSpecies] = {0.0};
+		su2double dcdn[nSpecies] = {0.0};
+		
+		su2double* D_old = nodes->GetDiffusionCoeff(iPoint);
+		if (config->GetMarker_All_PyCustom(val_marker)) {
+			dcdn[0] = geometry->GetCustomBoundaryDiffusion(val_marker, iVertex)/(-density_old*D_old[0]);
+			//dcdn[0] = mflux*(1-c1)/(-density_old*D_old);
+			dcdn[1] = 1-dcdn[0];
+		}
     for (auto iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
-    	//mass_frac[iSpecies] = nodes->GetMassFraction(iPoint, iSpecies);
-    	mass_frac[iSpecies] = nodes->GetMassFraction(Point_Normal, iSpecies); //No diffusion, dcdy=0
+    	mass_frac[iSpecies] = nodes->GetMassFraction(Point_Normal, iSpecies) - dcdn[iSpecies]*dist_ij; //For now, assume neighbor is normal
     }
-        
+    
+    
     //Set thermodynamic state
     su2double pressure = nodes->GetPressure(Point_Normal); //ZPG
     su2double temperature = Twall; //isothermal
