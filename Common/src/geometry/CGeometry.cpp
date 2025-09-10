@@ -97,6 +97,13 @@ CGeometry::~CGeometry(void) {
     }
     delete [] CustomBoundaryTemperature;
   }
+  
+  if(CustomBoundaryVelocity != nullptr){
+    for(iMarker=0; iMarker < nMarker; iMarker++){
+      delete [] CustomBoundaryVelocity[iMarker];
+    }
+    delete [] CustomBoundaryVelocity;
+  }
 
   /*--- Delete structures for MPI point-to-point communication. ---*/
 
@@ -2441,12 +2448,14 @@ void CGeometry::SetCustomBoundary(CConfig *config) {
   /*--- Initialize quantities for customized boundary conditions.
    * Custom values are initialized with the default values specified in the config (avoiding non physical values) ---*/
   CustomBoundaryTemperature = new su2double*[nMarker];
+  CustomBoundaryVelocity = new su2double*[nMarker];
   CustomBoundaryHeatFlux = new su2double*[nMarker];
 
   for(iMarker=0; iMarker < nMarker; iMarker++){
     Marker_Tag = config->GetMarker_All_TagBound(iMarker);
     CustomBoundaryHeatFlux[iMarker] = nullptr;
     CustomBoundaryTemperature[iMarker] = nullptr;
+    CustomBoundaryVelocity[iMarker] = nullptr;
     if(config->GetMarker_All_PyCustom(iMarker)){
       switch(config->GetMarker_All_KindBC(iMarker)){
         case HEAT_FLUX:
@@ -2457,8 +2466,10 @@ void CGeometry::SetCustomBoundary(CConfig *config) {
           break;
         case ISOTHERMAL:
           CustomBoundaryTemperature[iMarker] = new su2double[nVertex[iMarker]];
+          CustomBoundaryVelocity[iMarker] = new su2double[nVertex[iMarker]];
           for(iVertex=0; iVertex < nVertex[iMarker]; iVertex++){
             CustomBoundaryTemperature[iMarker][iVertex] = config->GetIsothermal_Temperature(Marker_Tag);
+            CustomBoundaryVelocity[iMarker][iVertex] = 0.0;
           }
           break;
         case INLET_FLOW:

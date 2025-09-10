@@ -1200,6 +1200,8 @@ void CConfig::SetConfig_Options() {
   addDoubleOption("INLET_TEMPERATURE_VE", Inlet_Temperature_ve, 0.0);
   /* DESCRIPTION: Specify if mixture is frozen */
   addBoolOption("FROZEN_MIXTURE", frozen, false);
+  /* DESCRIPTION: Specify if mixture is thermally frozen */
+  addBoolOption("THERMAL_EQUILIBRIUM", thermal_equil, false);
   /* DESCRIPTION: Specify if there is ionization */
   addBoolOption("IONIZATION", ionization, false);
   /* DESCRIPTION: Specify if there is VT transfer residual limiting */
@@ -1600,6 +1602,8 @@ void CConfig::SetConfig_Options() {
   addStringDoubleListOption("MARKER_OUTLET", nMarker_Outlet, Marker_Outlet, Outlet_Pressure);
   /*!\brief INC_INLET_TYPE \n DESCRIPTION: List of outlet types for incompressible flows. List length must match number of inlet markers. Options: PRESSURE_OUTLET, MASS_FLOW_OUTLET. \ingroup Config*/
   addEnumListOption("INC_OUTLET_TYPE", nInc_Outlet, Kind_Inc_Outlet, Inc_Outlet_Map);
+  /* DESCRIPTION: Specify if isothermal BC is blowing */
+  addBoolOption("ISOTHERMAL_BLOWING", isothermal_blowing, false);
   /*!\brief MARKER_ISOTHERMAL DESCRIPTION: Isothermal wall boundary marker(s)\n
    * Format: ( isothermal marker, wall temperature (static), ... ) \ingroup Config  */
   addStringDoubleListOption("MARKER_ISOTHERMAL", nMarker_Isothermal, Marker_Isothermal, Isothermal_Temperature);
@@ -6102,14 +6106,14 @@ void CConfig::SetOutput(SU2_COMPONENT val_software, unsigned short val_izone) {
       case MAIN_SOLVER::NEMO_EULER:
         if (Kind_Regime == ENUM_REGIME::COMPRESSIBLE) cout << "Compressible two-temperature thermochemical non-equilibrium Euler equations." << endl;
         if (Kind_FluidModel == SU2_NONEQ){
-          if ((GasModel != "N2") && (GasModel != "AIR-5") && (GasModel != "AIR-7") && (GasModel != "ARGON"))
+          if ((GasModel != "N2") && (GasModel != "AIR-2") && (GasModel != "AIR-5") && (GasModel != "AIR-7") && (GasModel != "ARGON") && (GasModel != "CAMPHOR-AIR"))
           SU2_MPI::Error("The GAS_MODEL given as input is not valid. Choose one of the options: N2, AIR-5, AIR-7, ARGON.", CURRENT_FUNCTION);
         }
         break;
       case MAIN_SOLVER::NEMO_NAVIER_STOKES:
         if (Kind_Regime == ENUM_REGIME::COMPRESSIBLE) cout << "Compressible two-temperature thermochemical non-equilibrium Navier-Stokes equations." << endl;
         if (Kind_FluidModel == SU2_NONEQ){
-          if ((GasModel != "N2") && (GasModel != "AIR-5") && (GasModel != "ARGON"))
+          if ((GasModel != "N2") && (GasModel != "AIR-2") && (GasModel != "AIR-5") && (GasModel != "ARGON")  && (GasModel != "CAMPHOR-AIR"))
           SU2_MPI::Error("The GAS_MODEL given as input is not valid. Choose one of the options: N2, AIR-5, ARGON.", CURRENT_FUNCTION);
         }
         break;

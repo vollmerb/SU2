@@ -53,6 +53,7 @@ CNEMOGas::CNEMOGas(const CConfig* config, unsigned short val_nDim): CFluidModel(
   Kind_TransCoeffModel = config->GetKind_TransCoeffModel();
 
   frozen               = config->GetFrozen();
+  thermal_equil       = config->GetThermal_Equil();
   ionization           = config->GetIonization();
 }
 

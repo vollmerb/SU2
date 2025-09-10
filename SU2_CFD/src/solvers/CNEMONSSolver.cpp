@@ -510,6 +510,97 @@ void CNEMONSSolver::BC_HeatFluxCatalytic_Wall(CGeometry *geometry,
   delete [] dYdn;
 }
 
+void CNEMONSSolver::BC_Isothermal_Wall_Blowing(CGeometry *geometry, CSolver **solver_container,
+                                       CNumerics *conv_numerics, CNumerics *sour_numerics,
+                                       CConfig *config, unsigned short val_marker) {
+
+  const bool implicit = (config->GetKind_TimeIntScheme() == EULER_IMPLICIT);
+  const su2double Temperature_Ref = config->GetTemperature_Ref();
+  const su2double Velocity_Ref = config->GetVelocity_Ref();
+
+/*--- Get universal information ---*/
+  const su2double RuSI = UNIVERSAL_GAS_CONSTANT;
+  const su2double Ru = 1000.0*RuSI;
+  const auto& Ms = FluidModel->GetSpeciesMolarMass();
+
+  /*--- Identify the boundary and retrieve the specified wall temperature from
+   the config (for non-CHT problems) as well as the wall function treatment. ---*/
+  const auto Marker_Tag = config->GetMarker_All_TagBound(val_marker);
+  su2double Twall = config->GetIsothermal_Temperature(Marker_Tag) / Temperature_Ref;
+
+  /*--- Loop over boundary points ---*/
+  SU2_OMP_FOR_DYN(OMP_MIN_SIZE)
+  for (auto iVertex = 0u; iVertex < geometry->nVertex[val_marker]; iVertex++) {
+
+    const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+    const auto Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
+    su2double* Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
+    su2double Area = GeometryToolbox::Norm(nDim, Normal);
+
+    //Get velocity - need to make wall-normal
+    su2double uwall[nDim] = {0.0};
+    if (config->GetMarker_All_PyCustom(val_marker)) {
+    	su2double Vn = geometry->GetCustomBoundaryVelocity(val_marker, iVertex);
+    	for (auto iVar = 0; iVar < nDim; iVar++) {
+    		uwall[iVar] = Vn*Normal[iVar]/Area;
+    	}
+    	//std::cout << Normal[0]/Area << " " << Normal[1]/Area << std::endl;
+    }
+				
+		//Get mass fractions
+		su2double mass_frac[nSpecies] = {0.0};
+    for (auto iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
+    	//mass_frac[iSpecies] = nodes->GetMassFraction(iPoint, iSpecies);
+    	mass_frac[iSpecies] = nodes->GetMassFraction(Point_Normal, iSpecies); //No diffusion, dcdy=0
+    }
+        
+    //Set thermodynamic state
+    su2double pressure = nodes->GetPressure(Point_Normal); //ZPG
+    su2double temperature = Twall; //isothermal
+    FluidModel->SetTDStatePTTv(pressure, &mass_frac[0], temperature, temperature);
+    su2double density = FluidModel->GetDensity();
+    auto& Energies = FluidModel->ComputeMixtureEnergies();
+    
+    //add kinetic energy
+    su2double sqvel = 0.0;
+		for (unsigned short iDim = 0; iDim < nDim; iDim++){
+		  sqvel += uwall[iDim]*uwall[iDim];
+		}
+		Energies[0] += sqvel;
+
+		
+		//Set the state vector
+    su2double state[nVar] = {0.0};
+    for (auto iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
+    	state[iSpecies] = density*mass_frac[iSpecies];
+    }
+    
+    for (auto iVar = 0; iVar < nDim; iVar++) {
+    	state[iVar + nSpecies] = density*uwall[iVar];
+    }
+    
+    auto nEnergyEq = Energies.size();
+    for (auto iVar = 0; iVar < nEnergyEq; iVar++) {
+    	state[iVar + nDim + nSpecies] = density*Energies[iVar];
+    } 
+    nodes->SetSolutionVec(iPoint,state);
+    //---------------------------------------------------------------------------
+
+    //Enforce zero RHS
+    for (auto iDim = 0u; iDim < nVar; iDim++)
+      LinSysRes(iPoint, iDim) = 0.0;
+    nodes->SetVel_ResTruncError_Zero(iPoint);
+
+    //Remove from implicit LHS too
+    if (implicit) {
+        for (auto iVar = 0u; iVar < nVar; iVar++) {
+          auto total_index = iPoint*nVar+iVar;
+          Jacobian.DeleteValsRowi(total_index);
+        }
+    }
+  }
+}
+
 void CNEMONSSolver::BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_container,
                                        CNumerics *conv_numerics, CNumerics *sour_numerics,
                                        CConfig *config, unsigned short val_marker) {

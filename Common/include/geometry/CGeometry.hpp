@@ -124,6 +124,7 @@ class CGeometry {
 
   short *Marker_All_SendRecv{nullptr};   /*!< \brief MPI Marker. */
   su2double **CustomBoundaryTemperature{nullptr};
+  su2double **CustomBoundaryVelocity{nullptr};
   su2double **CustomBoundaryHeatFlux{nullptr};
 
   /*--- Create vectors and distribute the values among the different planes queues ---*/
@@ -1536,6 +1537,25 @@ class CGeometry {
     CustomBoundaryTemperature[val_marker][val_vertex] = val_customBoundaryTemperature;
   }
 
+  /*!
+   * \brief Get the value of the customized velocity at a specified vertex on a specified marker.
+   * \param[in] val_marker - Marker value
+   * \param[in] val_vertex - Boundary vertex value
+   */
+  inline su2double GetCustomBoundaryVelocity(unsigned short val_marker, unsigned long val_vertex) const {
+    return CustomBoundaryVelocity[val_marker][val_vertex];
+  }
+
+  /*!
+   * \brief Set the value of the customized velocity at a specified vertex on a specified marker.
+   * \param[in] val_marker - Marker value
+   * \param[in] val_vertex - Boundary vertex value
+   * \param[in] val_customBoundaryVelocity - Value of the temperature.
+   */
+  inline void SetCustomBoundaryVelocity(unsigned short val_marker, unsigned long val_vertex, su2double val_customBoundaryVelocity) {
+    CustomBoundaryVelocity[val_marker][val_vertex] = val_customBoundaryVelocity;
+  }
+  
   /*!
    * \brief Get the value of the customized normal heat flux at a specified vertex on a specified marker.
    * \param[in] val_marker - Marker value
