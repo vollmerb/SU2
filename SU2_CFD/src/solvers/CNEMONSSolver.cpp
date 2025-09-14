@@ -41,6 +41,7 @@ CNEMONSSolver::CNEMONSSolver(CGeometry *geometry, CConfig *config, unsigned shor
   Viscosity_Inf      = config->GetViscosity_FreeStreamND();
   Prandtl_Lam        = config->GetPrandtl_Lam();
   Prandtl_Turb       = config->GetPrandtl_Turb();
+  Schmidt_Turb       = config->GetSchmidt_Number_Turbulent();
 
   /*--- Initialize the secondary values for direct derivative approxiations ---*/
   switch(config->GetDirectDiff()) {

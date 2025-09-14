@@ -55,6 +55,7 @@ protected:
   su2double Gas_Constant;     /*!< \brief Gas constant. */
   su2double Prandtl_Lam;      /*!< \brief Laminar Prandtl's number. */
   su2double Prandtl_Turb;     /*!< \brief Turbulent Prandtl's number. */
+  su2double Schmidt_Turb;     /*!< \brief Turbulent Schmidt's number. */
   su2double MassFlux;         /*!< \brief Mass flux across edge. */
   su2double
   *Proj_Flux_Tensor;  /*!< \brief Flux tensor projected in a direction. */

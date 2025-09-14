@@ -249,6 +249,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   /*--- Rename variables for convenience ---*/
   const auto& Ms = fluidmodel->GetSpeciesMolarMass();
   const auto& Ds  = val_diffusioncoeff;
+  su2double Ds_total[nSpecies];
   const su2double mu  = val_lam_viscosity+val_eddy_viscosity;
   su2double ktr = val_therm_conductivity;
   su2double kve = val_therm_conductivity_ve;
@@ -276,12 +277,18 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   kve  = kve*(1.0+scl);
   Cpve = V[RHOCVVE_INDEX]+Ru/Mass;
   kve += Cpve*(val_eddy_viscosity/Prandtl_Turb);
+  
+  /*--- Scale diffusion coefficient with turb visc ---*/
+  for (auto iSpecies = 0; iSpecies < nHeavy; iSpecies++) {
+  	Ds_total[iSpecies] = Ds[iSpecies] + val_eddy_viscosity/Schmidt_Turb; ///rho;
+  }
+  
 
   /*--- Pre-compute mixture quantities ---*/  //TODO
   su2double Vector[MAXNDIM] = {0.0};
   for (auto iDim = 0; iDim < nDim; iDim++) {
     for (auto iSpecies = 0; iSpecies < nHeavy; iSpecies++) {
-      Vector[iDim] += rho*Ds[iSpecies]*GV[RHOS_INDEX+iSpecies][iDim];
+      Vector[iDim] += rho*Ds_total[iSpecies]*GV[RHOS_INDEX+iSpecies][iDim];
     }
   }
 
@@ -293,7 +300,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
 
     /*--- Species diffusion velocity ---*/
     for (auto iSpecies = 0; iSpecies < nHeavy; iSpecies++) {
-      Flux_Tensor[iSpecies][iDim] = rho*Ds[iSpecies]*GV[RHOS_INDEX+iSpecies][iDim]
+      Flux_Tensor[iSpecies][iDim] = rho*Ds_total[iSpecies]*GV[RHOS_INDEX+iSpecies][iDim]
           - V[RHOS_INDEX+iSpecies]*Vector[iDim];
     }
 
