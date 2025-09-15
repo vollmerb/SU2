@@ -126,6 +126,7 @@ class CGeometry {
   su2double **CustomBoundaryTemperature{nullptr};
   su2double **CustomBoundaryVelocity{nullptr};
   su2double **CustomBoundaryHeatFlux{nullptr};
+  su2double **CustomBoundaryDiffusion{nullptr};
 
   /*--- Create vectors and distribute the values among the different planes queues ---*/
 
@@ -1573,6 +1574,25 @@ class CGeometry {
    */
   inline void SetCustomBoundaryHeatFlux(unsigned short val_marker, unsigned long val_vertex, su2double val_customBoundaryHeatFlux) {
     CustomBoundaryHeatFlux[val_marker][val_vertex] = val_customBoundaryHeatFlux;
+  }
+  
+    /*!
+   * \brief Get the value of the customized diffusion at a specified vertex on a specified marker.
+   * \param[in] val_marker - Marker value
+   * \param[in] val_vertex - Boundary vertex value
+   */
+  inline su2double GetCustomBoundaryDiffusion(unsigned short val_marker, unsigned long val_vertex) const {
+    return CustomBoundaryDiffusion[val_marker][val_vertex];
+  }
+
+  /*!
+   * \brief Set the value of the customized diffusion at a specified vertex on a specified marker.
+   * \param[in] val_marker - Marker value
+   * \param[in] val_vertex - Boundary vertex value
+   * \param[in] val_customBoundaryDiffusion - Value of the temperature.
+   */
+  inline void SetCustomBoundaryDiffusion(unsigned short val_marker, unsigned long val_vertex, su2double val_customBoundaryDiffusion) {
+    CustomBoundaryDiffusion[val_marker][val_vertex] = val_customBoundaryDiffusion;
   }
 
   /*!
