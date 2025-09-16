@@ -280,7 +280,7 @@ void CNEMONumerics::GetViscousProjFlux(const su2double *val_primvar,
   
   /*--- Scale diffusion coefficient with turb visc ---*/
   for (auto iSpecies = 0; iSpecies < nHeavy; iSpecies++) {
-  	Ds_total[iSpecies] = Ds[iSpecies] + val_eddy_viscosity/Schmidt_Turb; ///rho;
+  	Ds_total[iSpecies] = Ds[iSpecies] + val_eddy_viscosity/Schmidt_Turb/rho;
   }
   
 

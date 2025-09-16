@@ -511,6 +511,118 @@ void CNEMONSSolver::BC_HeatFluxCatalytic_Wall(CGeometry *geometry,
   delete [] dYdn;
 }
 
+void CNEMONSSolver::BC_HeatFlux_Wall_Blowing(CGeometry *geometry, CSolver **solver_container,
+                                       CNumerics *conv_numerics, CNumerics *sour_numerics,
+                                       CConfig *config, unsigned short val_marker) {
+
+  const bool implicit = (config->GetKind_TimeIntScheme() == EULER_IMPLICIT);
+  const su2double Temperature_Ref = config->GetTemperature_Ref();
+  const su2double Velocity_Ref = config->GetVelocity_Ref();
+
+/*--- Get universal information ---*/
+  const su2double RuSI = UNIVERSAL_GAS_CONSTANT;
+  const su2double Ru = 1000.0*RuSI;
+  const auto& Ms = FluidModel->GetSpeciesMolarMass();
+
+  /*--- Loop over boundary points ---*/
+  SU2_OMP_FOR_DYN(OMP_MIN_SIZE)
+  for (auto iVertex = 0u; iVertex < geometry->nVertex[val_marker]; iVertex++) {
+
+    const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+    const auto Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
+    su2double* Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
+    su2double Area = GeometryToolbox::Norm(nDim, Normal);
+    
+    /*--- Compute distance between wall & normal neighbor ---*/
+    const auto Coord_i = geometry->nodes->GetCoord(iPoint);
+    const auto Coord_j = geometry->nodes->GetCoord(Point_Normal);
+    su2double dist_ij = GeometryToolbox::Distance(nDim, Coord_i, Coord_j);
+		
+		//Get heat-flux and mass-flux
+		su2double hflux = 0.0;
+		su2double mflux = 0.0;
+		if (config->GetMarker_All_PyCustom(val_marker)) {
+			hflux = geometry->GetCustomBoundaryHeatFlux(val_marker, iVertex);
+    	mflux = geometry->GetCustomBoundaryVelocity(val_marker, iVertex);
+    }
+    
+    //Set wall temperature from heat-flux
+    su2double kappa_old = nodes->GetThermalConductivity(iPoint);
+    su2double dTdn = -hflux/kappa_old;
+    su2double Twall = nodes->GetTemperature(Point_Normal) - dTdn*dist_ij; //For now, assume neighbor is normal
+
+    //Set wall-normal velocity
+    su2double density_old = nodes->GetDensity(iPoint);
+    su2double uwall[nDim] = {0.0};
+    su2double Vn = mflux/density_old;
+    for (auto iVar = 0; iVar < nDim; iVar++) {
+    	uwall[iVar] = Vn*Normal[iVar]/Area;
+    }
+		
+			
+		//Set wall mass fractions from diffusion
+		su2double mass_frac[nSpecies] = {0.0};
+		su2double dcdn[nSpecies] = {0.0};
+		
+		su2double* D_old = nodes->GetDiffusionCoeff(iPoint);
+		if (config->GetMarker_All_PyCustom(val_marker)) {
+			dcdn[0] = geometry->GetCustomBoundaryDiffusion(val_marker, iVertex)/(-density_old*D_old[0]);
+			//dcdn[0] = mflux*(1-c1)/(-density_old*D_old);
+			dcdn[1] = 1-dcdn[0];
+		}
+    for (auto iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
+    	mass_frac[iSpecies] = nodes->GetMassFraction(Point_Normal, iSpecies) - dcdn[iSpecies]*dist_ij; //For now, assume neighbor is normal
+    }
+    
+    
+    //Set thermodynamic state
+    su2double pressure = nodes->GetPressure(Point_Normal); //ZPG
+    su2double temperature = Twall; //isothermal
+    FluidModel->SetTDStatePTTv(pressure, &mass_frac[0], temperature, temperature);
+    su2double density = FluidModel->GetDensity();
+    auto& Energies = FluidModel->ComputeMixtureEnergies();
+    
+    //add kinetic energy
+    su2double sqvel = 0.0;
+		for (unsigned short iDim = 0; iDim < nDim; iDim++){
+		  sqvel += uwall[iDim]*uwall[iDim];
+		}
+		Energies[0] += sqvel;
+
+		
+		//Set the state vector
+    su2double state[nVar] = {0.0};
+    for (auto iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
+    	state[iSpecies] = density*mass_frac[iSpecies];
+    }
+    
+    for (auto iVar = 0; iVar < nDim; iVar++) {
+    	state[iVar + nSpecies] = density*uwall[iVar];
+    }
+    
+    auto nEnergyEq = Energies.size();
+    for (auto iVar = 0; iVar < nEnergyEq; iVar++) {
+    	state[iVar + nDim + nSpecies] = density*Energies[iVar];
+    } 
+    nodes->SetSolutionVec(iPoint,state);
+    //---------------------------------------------------------------------------
+
+    //Enforce zero RHS
+    for (auto iDim = 0u; iDim < nVar; iDim++)
+      LinSysRes(iPoint, iDim) = 0.0;
+    nodes->SetVel_ResTruncError_Zero(iPoint);
+
+    //Remove from implicit LHS too
+    if (implicit) {
+        for (auto iVar = 0u; iVar < nVar; iVar++) {
+          auto total_index = iPoint*nVar+iVar;
+          Jacobian.DeleteValsRowi(total_index);
+        }
+    }
+  }
+}
+
+
 void CNEMONSSolver::BC_Isothermal_Wall_Blowing(CGeometry *geometry, CSolver **solver_container,
                                        CNumerics *conv_numerics, CNumerics *sour_numerics,
                                        CConfig *config, unsigned short val_marker) {

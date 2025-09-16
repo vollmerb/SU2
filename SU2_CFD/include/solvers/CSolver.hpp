@@ -991,6 +991,13 @@ public:
                                        CNumerics *visc_numerics,
                                        CConfig *config,
                                        unsigned short val_marker) { }
+	
+	inline virtual void BC_HeatFlux_Wall_Blowing(CGeometry *geometry,
+                                       CSolver **solver_container,
+                                       CNumerics *conv_numerics,
+                                       CNumerics *visc_numerics,
+                                       CConfig *config,
+                                       unsigned short val_marker) { }
 
   /*!
    * \brief Impose a heat flux by prescribing a heat transfer coefficient and a temperature at infinity.

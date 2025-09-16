@@ -2469,8 +2469,12 @@ void CGeometry::SetCustomBoundary(CConfig *config) {
       switch(config->GetMarker_All_KindBC(iMarker)){
         case HEAT_FLUX:
           CustomBoundaryHeatFlux[iMarker] = new su2double[nVertex[iMarker]];
+          CustomBoundaryVelocity[iMarker] = new su2double[nVertex[iMarker]];
+          CustomBoundaryDiffusion[iMarker] = new su2double[nVertex[iMarker]];
           for(iVertex=0; iVertex < nVertex[iMarker]; iVertex++){
             CustomBoundaryHeatFlux[iMarker][iVertex] = config->GetWall_HeatFlux(Marker_Tag);
+            CustomBoundaryVelocity[iMarker][iVertex] = 0.0;
+            CustomBoundaryDiffusion[iMarker][iVertex] = 0.0;
           }
           break;
         case ISOTHERMAL:

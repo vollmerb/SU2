@@ -131,6 +131,9 @@ public:
   void BC_HeatFlux_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics,
                         CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) override;
 
+	void BC_HeatFlux_Wall_Blowing(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics,
+                        CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) override;
+
   /*!
    * \brief Impose a constant heat-flux condition at the wall.
    * \param[in] geometry - Geometrical definition of the problem.
