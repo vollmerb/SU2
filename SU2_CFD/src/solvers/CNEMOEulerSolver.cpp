@@ -214,6 +214,13 @@ CNEMOEulerSolver::CNEMOEulerSolver(CGeometry *geometry, CConfig *config,
   SetBaseClassPointerToNodes();
 
   node_infty->SetPrimVar(0, FluidModel);
+  
+  /*-- Allocation of inlets has to happen in derived classes,
+   * due to arbitrary number of species variables ---*/
+
+  Inlet_SpeciesVars.resize(nMarker);
+  for (unsigned long iMarker = 0; iMarker < nMarker; iMarker++)
+    Inlet_SpeciesVars[iMarker].resize(nVertex[iMarker],nSpecies); // = MassFrac_Inf;
 
   /*--- Initial comms. ---*/
 
@@ -2221,6 +2228,30 @@ void CNEMOEulerSolver::BC_Supersonic_Inlet(
     /*--- Check if the node belongs to the domain (i.e, not a halo node) ---*/
     if (!geometry->nodes->GetDomain(iPoint))
       continue;
+    
+    
+    //Set inlet profile
+    if (config->GetInlet_Profile_From_File()) {
+    	//std::cout << "updating inlet profile" << std::endl;
+    	
+    	//Get interpolated values (note names are reused from total inflow conditions)
+    	const su2double Temperature_local  = Inlet_Ttotal[val_marker][iVertex];
+      const su2double Pressure_local  = Inlet_Ptotal[val_marker][iVertex];
+      const su2double *Velocity_local = Inlet_FlowDir[val_marker][iVertex];
+      const su2double *Mass_Frac_local = Inlet_SpeciesVars[val_marker][iVertex];
+      Temperature_ve = Temperature_local;
+      
+      /*--- Set mixture state ---*/
+			FluidModel->SetTDStatePTTv(Pressure_local, Mass_Frac_local, Temperature_local, Temperature_ve);
+
+			/*--- Compute Ma vector for flow direction ---*/
+			const su2double soundspeed = FluidModel->ComputeSoundSpeed();
+			su2double Mvec[MAXNDIM] = {0.0};
+			for (unsigned short iDim = 0; iDim < nDim; iDim++)
+				Mvec[iDim] = Velocity_local[iDim] / soundspeed;
+          
+    	node_inlet.UpdateSolution(0, Pressure_local, Mass_Frac_local, Mvec, Temperature_local, Temperature_ve, config);
+    }
 
     /*--- Index of the closest interior node ---*/
     const auto Point_Normal =
@@ -2317,6 +2348,100 @@ void CNEMOEulerSolver::BC_Supersonic_Inlet(
   }
 }
 
+void CNEMOEulerSolver::BC_Supersonic_Inlet_Dirichlet(CGeometry *geometry, CSolver **solver_container,
+                                       CNumerics *conv_numerics, CNumerics *sour_numerics,
+                                       CConfig *config, unsigned short val_marker) {
+
+  /*--- Supersonic inlet flow: there are no outgoing characteristics,
+   so all flow variables can be imposed at the inlet.
+   First, retrieve the specified values for the primitive variables. ---*/
+	const bool implicit = (config->GetKind_TimeIntScheme() == EULER_IMPLICIT);
+  const string Marker_Tag = config->GetMarker_All_TagBound(val_marker);
+
+  const su2double Temperature = config->GetInlet_Temperature(Marker_Tag);
+  const su2double Pressure = config->GetInlet_Pressure(Marker_Tag);
+  const su2double *Velocity = config->GetInlet_Velocity(Marker_Tag);
+  const su2double *Mass_Frac = config->GetInlet_MassFrac();
+  su2double Temperature_ve = config->GetInlet_Temperature_ve();
+
+  /*--- If no Tve value specified (left as 0 K default), set to Ttr value ---*/
+  if (Temperature_ve == 0.0) {
+    Temperature_ve = Temperature;
+  }
+
+  /*--- Set mixture state ---*/
+  FluidModel->SetTDStatePTTv(Pressure, Mass_Frac, Temperature, Temperature_ve);
+
+  /*--- Compute Ma vector for flow direction ---*/
+  const su2double soundspeed = FluidModel->ComputeSoundSpeed();
+
+  su2double Mvec[MAXNDIM] = {0.0};
+
+  for (unsigned short iDim = 0; iDim < nDim; iDim++)
+    Mvec[iDim] = Velocity[iDim] / soundspeed;
+
+  /*--- Allocate inlet node to compute gradients for numerics ---*/
+  CNEMOEulerVariable node_inlet(Pressure, Mass_Frac, Mvec, Temperature,
+                                Temperature_ve, 1, nDim, nVar, nPrimVar,
+                                nPrimVarGrad, config, FluidModel);
+  node_inlet.SetPrimVar(0, FluidModel);
+
+  su2double Normal[MAXNDIM] = {0.0};
+
+  /*--- Loop over all the vertices on this boundary marker ---*/
+  for (unsigned long iVertex = 0; iVertex < geometry->nVertex[val_marker];
+       iVertex++) {
+    const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+
+    /*--- Check if the node belongs to the domain (i.e, not a halo node) ---*/
+    if (!geometry->nodes->GetDomain(iPoint))
+      continue;
+    
+    
+    //Set inlet profile
+    if (config->GetInlet_Profile_From_File()) {
+    	//std::cout << "updating inlet profile" << std::endl;
+    	
+    	//Get interpolated values (note names are reused from total inflow conditions)
+    	const su2double Temperature_local  = Inlet_Ttotal[val_marker][iVertex];
+      const su2double Pressure_local  = Inlet_Ptotal[val_marker][iVertex];
+      const su2double *Velocity_local = Inlet_FlowDir[val_marker][iVertex];
+      const su2double *Mass_Frac_local = Inlet_SpeciesVars[val_marker][iVertex];
+      Temperature_ve = Temperature_local;
+      
+      /*--- Set mixture state ---*/
+			FluidModel->SetTDStatePTTv(Pressure_local, Mass_Frac_local, Temperature_local, Temperature_ve);
+
+			/*--- Compute Ma vector for flow direction ---*/
+			const su2double soundspeed = FluidModel->ComputeSoundSpeed();
+			su2double Mvec[MAXNDIM] = {0.0};
+			for (unsigned short iDim = 0; iDim < nDim; iDim++)
+				Mvec[iDim] = Velocity_local[iDim] / soundspeed;
+          
+    	node_inlet.UpdateSolution(0, Pressure_local, Mass_Frac_local, Mvec, Temperature_local, Temperature_ve, config);
+    }
+
+
+    /*--- Set various quantities in the solver class ---*/
+    su2double* state = node_inlet.GetSolution(0);
+    nodes->SetSolutionVec(iPoint,state);
+
+
+    //Enforce zero RHS
+    for (auto iDim = 0u; iDim < nVar; iDim++)
+      LinSysRes(iPoint, iDim) = 0.0;
+    nodes->SetVel_ResTruncError_Zero(iPoint);
+
+    //Remove from implicit LHS too
+    if (implicit) {
+        for (auto iVar = 0u; iVar < nVar; iVar++) {
+          auto total_index = iPoint*nVar+iVar;
+          Jacobian.DeleteValsRowi(total_index);
+        }
+    }
+  }
+}
+
 void CNEMOEulerSolver::BC_Supersonic_Outlet(
     CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics,
     CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) {
@@ -2398,3 +2523,32 @@ void CNEMOEulerSolver::SetPressureDiffusionSensor(CGeometry *geometry, CConfig *
   CompleteComms(geometry, config, SENSOR);
 
 }
+
+void CNEMOEulerSolver::SetInletAtVertex(const su2double *val_inlet,
+                                    unsigned short iMarker,
+                                    unsigned long iVertex) {
+
+  /*--- Alias positions within inlet file for readability ---*/
+
+  unsigned short T_position = nDim;
+  unsigned short P_position = nDim + 1;
+  unsigned short FlowDir_position = nDim + 2;
+  unsigned short Species_position = nDim + 2 + nDim + 1;
+
+  /*--- Note that it is not necessary anymore to use normalized normals for the inlet velocity ---*/
+
+
+  /*--- Store the values in our inlet data structures. ---*/
+
+  Inlet_Ttotal[iMarker][iVertex] = val_inlet[T_position];
+  Inlet_Ptotal[iMarker][iVertex] = val_inlet[P_position];
+  for (unsigned short iDim = 0; iDim < nDim; iDim++) {
+    Inlet_FlowDir[iMarker][iVertex][iDim] = val_inlet[FlowDir_position + iDim];
+  }
+  for (unsigned short iDim = 0; iDim < nSpecies; iDim++) {
+  	Inlet_SpeciesVars[iMarker][iVertex][iDim] = val_inlet[Species_position + iDim];
+	}
+	
+}
+
+

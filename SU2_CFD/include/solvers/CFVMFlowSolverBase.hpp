@@ -1098,7 +1098,7 @@ class CFVMFlowSolverBase : public CSolver {
    * \param[in] iMarker - Surface marker where the coefficient is computed.
    * \param[in] iVertex - Vertex of the marker <i>iMarker</i> where the inlet is being set.
    */
-  void SetInletAtVertex(const su2double* val_inlet, unsigned short iMarker, unsigned long iVertex) final;
+  void SetInletAtVertex(const su2double* val_inlet, unsigned short iMarker, unsigned long iVertex);
 
   /*!
    * \brief Get the set of value imposed at an inlet.

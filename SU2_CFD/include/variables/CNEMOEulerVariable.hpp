@@ -433,5 +433,10 @@ class CNEMOEulerVariable : public CFlowVariable {
       Solution_Old(iPoint, iDim) = val_vector[iDim]; //enforce old solution - is this needed?
     }
   }
-
+  
+  void UpdateSolution(unsigned long iPoint, su2double val_pressure, const su2double *val_massfrac,
+                                       const su2double *val_mach,
+                                       su2double val_temperature,
+                                       su2double val_temperature_ve, const CConfig *config);
+	
 };

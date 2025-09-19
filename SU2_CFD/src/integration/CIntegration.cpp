@@ -116,7 +116,9 @@ void CIntegration::Space_Integration(CGeometry *geometry,
         solver_container[MainSolver]->BC_Engine_Exhaust(geometry, solver_container, conv_bound_numerics, visc_bound_numerics, config, iMarker);
         break;
       case SUPERSONIC_INLET:
-        solver_container[MainSolver]->BC_Supersonic_Inlet(geometry, solver_container, conv_bound_numerics, visc_bound_numerics, config, iMarker);
+      	if (!config->GetDirichlet_Inlet()){
+        	solver_container[MainSolver]->BC_Supersonic_Inlet(geometry, solver_container, conv_bound_numerics, visc_bound_numerics, config, iMarker);
+        }
         break;
       case OUTLET_FLOW:
         solver_container[MainSolver]->BC_Outlet(geometry, solver_container, conv_bound_numerics, visc_bound_numerics, config, iMarker);
@@ -181,6 +183,11 @@ void CIntegration::Space_Integration(CGeometry *geometry,
         break;
       case SMOLUCHOWSKI_MAXWELL:
         solver_container[MainSolver]->BC_Smoluchowski_Maxwell(geometry, solver_container, conv_bound_numerics, visc_bound_numerics, config, iMarker);
+        break;
+      case SUPERSONIC_INLET:
+      	if (config->GetDirichlet_Inlet()){
+        	solver_container[MainSolver]->BC_Supersonic_Inlet_Dirichlet(geometry, solver_container, conv_bound_numerics, visc_bound_numerics, config, iMarker);
+        }
         break;
     }
 

@@ -225,6 +225,7 @@ private:
                                         parallel computations this number can be different from nMarker_All). */
   
   bool isothermal_blowing;        /*!< \brief Use the blowing isothermal boundary condition. */
+  bool dirichlet_inlet;        /*!< \brief Use the blowing isothermal boundary condition. */
 
   bool Inlet_From_File;         /*!< \brief True if the inlet profile is to be loaded from a file. */
   string Inlet_Filename;        /*!< \brief Filename specifying an inlet profile. */
@@ -6029,6 +6030,12 @@ public:
    * \return <code>TRUE</code> if it is a isothermal blowing wall condition; otherwise <code>FALSE</code>.
    */
   bool GetIsothermal_Blowing(void){ return isothermal_blowing; }
+  
+  /*!
+   * \brief Get information about the inlet condition
+   * \return <code>TRUE</code> if it is a dirichlet inlet condition; otherwise <code>FALSE</code>.
+   */
+  bool GetDirichlet_Inlet(void){ return dirichlet_inlet; }
 
   /*!
    * \brief Get information about the Low Mach Preconditioning

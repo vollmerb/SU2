@@ -52,6 +52,7 @@ protected:
   Energy_ve_Inf,                  /*!< \brief Vib.-el. free stream energy. */
   Temperature_ve_Inf;             /*!< \brief Vib.-el. free stream temperature. */
   const su2double *MassFrac_Inf;  /*!< \brief Free stream species mass fraction. */
+  vector<su2activematrix> Inlet_SpeciesVars;      /*!< \brief Value of the Species vars. */
 
   su2double *Source;              /*!< \brief Auxiliary vector to store source terms. */
 
@@ -275,6 +276,10 @@ public:
   void BC_Supersonic_Inlet(CGeometry *geometry, CSolver **solver_container,
                            CNumerics *conv_numerics, CNumerics *visc_numerics,
                            CConfig *config, unsigned short val_marker) override;
+  
+  void BC_Supersonic_Inlet_Dirichlet(CGeometry *geometry, CSolver **solver_container,
+                           CNumerics *conv_numerics, CNumerics *visc_numerics,
+                           CConfig *config, unsigned short val_marker) override;
   /*!
    * \brief Impose the supersonic outlet boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.
@@ -352,5 +357,12 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   void SetPressureDiffusionSensor(CGeometry *geometry, CConfig *config);
-
+  
+  void SetInletAtVertex(const su2double *val_inlet,
+                        unsigned short iMarker,
+                        unsigned long iVertex) override;
+  
+	inline su2double* GetInlet_SpeciesVars(unsigned short val_marker, unsigned long val_vertex) {
+    return Inlet_SpeciesVars[val_marker][val_vertex];
+  }
 };

@@ -3553,6 +3553,8 @@ void CSolver::LoadInletProfile(CGeometry **geometry,
 
   const auto species = config->GetKind_Species_Model() != SPECIES_MODEL::NONE;
   const unsigned short nVar_Species = species ? solver[MESH_0][SPECIES_SOL]->GetnVar() : 0;
+  
+  const unsigned short nVar_Species_nemo = (config->GetKind_Solver()==MAIN_SOLVER::NEMO_RANS) ? config->GetnSpecies() : 0;
 
   /*--- names of the columns in the profile ---*/
   vector<string> columnNames;
@@ -3565,7 +3567,7 @@ void CSolver::LoadInletProfile(CGeometry **geometry,
    necessary in case we are writing a template profile file or for Inlet
    Interpolation purposes. ---*/
 
-  const unsigned short nCol_InletFile = 2 + nDim + nVar_Turb + nVar_Species;
+  const unsigned short nCol_InletFile = 2 + nDim + nVar_Turb + nVar_Species + nVar_Species_nemo;
 
   /*--- for incompressible flow, we can switch the energy equation off ---*/
   /*--- for now, we write the temperature even if we are not using it ---*/
@@ -3591,10 +3593,21 @@ void CSolver::LoadInletProfile(CGeometry **geometry,
     if (config->GetMarker_All_KindBC(iMarker) != KIND_MARKER) continue;
 
     string Marker_Tag = config->GetMarker_All_TagBound(iMarker);
-    su2double p_total   = config->GetInlet_Ptotal(Marker_Tag);
-    su2double t_total   = config->GetInlet_Ttotal(Marker_Tag);
-    auto flow_dir = config->GetInlet_FlowDir(Marker_Tag);
+    
+    //Set defaults
     std::stringstream columnName,columnValue;
+    su2double p_total, t_total;
+    if (config->GetMarker_All_KindBC(iMarker) == INLET_FLOW){
+		  p_total   = config->GetInlet_Ptotal(Marker_Tag);
+		  t_total   = config->GetInlet_Ttotal(Marker_Tag);
+		}else{
+			p_total   = config->GetInlet_Pressure(Marker_Tag);
+		  t_total   = config->GetInlet_Temperature(Marker_Tag);
+		}
+		
+		const su2double* const flow_dir = (config->GetMarker_All_KindBC(iMarker) == INLET_FLOW) ?
+    config->GetInlet_FlowDir(Marker_Tag) :
+    config->GetInlet_Velocity(Marker_Tag);
 
     columnValue << setprecision(15);
     columnValue << std::scientific;
@@ -3801,9 +3814,13 @@ void CSolver::LoadInletProfile(CGeometry **geometry,
 
             if (dist < min_dist) {
               min_dist = dist;
-              for (auto iVar = 0ul; iVar < nColumns; iVar++)
+              for (auto iVar = 0ul; iVar < nColumns; iVar++){
                 Inlet_Values[iVar] = Inlet_Data[index+iVar];
+                //std::cout<< Inlet_Data[index+iVar] << " ";
+              }
+              //std::cout << std::endl;
             }
+          
 
           }
 

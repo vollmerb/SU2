@@ -687,6 +687,7 @@ void CFVMFlowSolverBase<V, R>::SetInletAtVertex(const su2double* val_inlet, unsi
   for (unsigned short iDim = 0; iDim < nDim; iDim++) {
     Inlet_FlowDir[iMarker][iVertex][iDim] = val_inlet[FlowDir_position + iDim];
   }
+
 }
 
 template <class V, ENUM_REGIME R>

@@ -509,6 +509,51 @@ void CTurbSASolver::BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_con
 
 }
 
+void CTurbSASolver::BC_Supersonic_Inlet_Dirichlet(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics,
+                             CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) {
+                             
+	const bool implicit = (config->GetKind_TimeIntScheme() == EULER_IMPLICIT);
+
+  /*--- Loop over all the vertices on this boundary marker ---*/
+
+  SU2_OMP_FOR_STAT(OMP_MIN_SIZE)
+  for (auto iVertex = 0u; iVertex < geometry->nVertex[val_marker]; iVertex++) {
+
+    const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+
+    /*--- Check if the node belongs to the domain (i.e., not a halo node) ---*/
+    if (!geometry->nodes->GetDomain(iPoint))
+      continue;
+
+    /*--- Non-dimensionalize Inlet_TurbVars if Inlet-Files are used. ---*/
+    su2double Inlet_Vars[MAXNVAR];
+    Inlet_Vars[0] = Inlet_TurbVars[val_marker][iVertex][0];
+    if (config->GetInlet_Profile_From_File()) {
+      Inlet_Vars[0] *= config->GetDensity_Ref() / config->GetViscosity_Ref();
+    }
+
+    
+    //Set solution
+    nodes->SetSolution(iPoint, Inlet_Vars);
+    nodes->SetSolution_Old(iPoint, Inlet_Vars);
+
+
+    //Enforce zero RHS
+    for (auto iDim = 0u; iDim < nVar; iDim++)
+      LinSysRes(iPoint, iDim) = 0.0;
+
+    //Remove from implicit LHS too
+    if (implicit) {
+        for (auto iVar = 0u; iVar < nVar; iVar++) {
+          auto total_index = iPoint*nVar+iVar;
+          Jacobian.DeleteValsRowi(total_index);
+        }
+    }
+  
+  
+  }                
+}
+
 void CTurbSASolver::BC_Inlet(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics,
                              CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) {
 

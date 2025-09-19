@@ -275,3 +275,45 @@ bool CNEMOEulerVariable::Cons2PrimVar(su2double *U, su2double *V,
 
   return nonPhys;
 }
+
+void CNEMOEulerVariable::UpdateSolution(unsigned long iPoint, su2double val_pressure, const su2double *val_massfrac,
+                                       const su2double *val_mach,
+                                       su2double val_temperature,
+                                       su2double val_temperature_ve, const CConfig *config) {
+	
+	unsigned short iDim, iSpecies;
+	
+	const bool dual_time = (config->GetTime_Marching() == TIME_MARCHING::DT_STEPPING_1ST) ||
+                         (config->GetTime_Marching() == TIME_MARCHING::DT_STEPPING_2ND);
+  const bool classical_rk4 = (config->GetKind_TimeIntScheme_Flow() == CLASSICAL_RK4_EXPLICIT);
+  
+  
+  /*--- Set mixture state ---*/
+  fluidmodel->SetTDStatePTTv(val_pressure, val_massfrac, val_temperature, val_temperature_ve);
+
+  /*--- Compute necessary quantities ---*/
+  const su2double rho = fluidmodel->GetDensity();
+  const su2double soundspeed = fluidmodel->ComputeSoundSpeed();
+  const su2double sqvel = GeometryToolbox::SquaredNorm(nDim, val_mach) * pow(soundspeed,2);
+  const auto& energies = fluidmodel->ComputeMixtureEnergies();
+
+  /*--- Initialize Solution & Solution_Old vectors ---*/
+  for (iSpecies = 0; iSpecies < nSpecies; iSpecies++)
+    Solution(iPoint,iSpecies)     = rho*val_massfrac[iSpecies];
+  for (iDim = 0; iDim < nDim; iDim++)
+    Solution(iPoint,nSpecies+iDim)     = rho*val_mach[iDim]*soundspeed;
+
+  Solution(iPoint,nSpecies+nDim)       = rho*(energies[0]+0.5*sqvel);
+  Solution(iPoint,nSpecies+nDim+1)     = rho*(energies[1]);
+	
+  Solution_Old = Solution;
+
+  if (classical_rk4) Solution_New = Solution;
+
+  /*--- Allocate and initializate solution for dual time strategy ---*/
+
+  if (dual_time) {
+    Solution_time_n = Solution;
+    Solution_time_n1 = Solution;
+  }
+}
