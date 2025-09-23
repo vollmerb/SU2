@@ -3554,7 +3554,7 @@ void CSolver::LoadInletProfile(CGeometry **geometry,
   const auto species = config->GetKind_Species_Model() != SPECIES_MODEL::NONE;
   const unsigned short nVar_Species = species ? solver[MESH_0][SPECIES_SOL]->GetnVar() : 0;
   
-  const unsigned short nVar_Species_nemo = (config->GetKind_Solver()==MAIN_SOLVER::NEMO_RANS) ? config->GetnSpecies() : 0;
+  const unsigned short nVar_Species_nemo = (config->GetKind_Solver()==MAIN_SOLVER::NEMO_RANS || config->GetKind_Solver()==MAIN_SOLVER::NEMO_NAVIER_STOKES) ? config->GetnSpecies() : 0;
 
   /*--- names of the columns in the profile ---*/
   vector<string> columnNames;

@@ -320,5 +320,13 @@ class CEulerVariable : public CFlowVariable {
   inline void SetVelSolutionVector(unsigned long iPoint, const su2double *val_vector) final {
     for (unsigned long iDim = 0; iDim < nDim; iDim++) Solution(iPoint, iDim+1) = GetDensity(iPoint) * val_vector[iDim];
   }
+  
+  inline void SetSolutionVec(unsigned long iPoint, const su2double *val_vector) {
+    for (unsigned long iDim = 0; iDim < nVar; iDim++){
+      Solution(iPoint, iDim) = val_vector[iDim]; //enforce current solution
+      Solution_Old(iPoint, iDim) = val_vector[iDim]; //enforce old solution - is this needed?
+    }
+    SetVelocity(iPoint);
+  }
 
 };

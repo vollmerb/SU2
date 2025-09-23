@@ -619,6 +619,12 @@ public:
                            CConfig *config,
                            unsigned short val_marker) final;
 
+	void BC_Supersonic_Inlet_Dirichlet(CGeometry *geometry,
+                           CSolver **solver_container,
+                           CNumerics *conv_numerics,
+                           CNumerics *visc_numerics,
+                           CConfig *config,
+                           unsigned short val_marker) final;
   /*!
    * \brief Impose a supersonic outlet boundary condition.
    * \param[in] geometry - Geometrical definition of the problem.

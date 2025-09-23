@@ -397,9 +397,13 @@ CSU2TCLib::CSU2TCLib(const CConfig* config, unsigned short val_nDim, bool viscou
     
     // Blottner viscosity coefficients (From LJ-CE curve fit 0.3<T*<40) [LJ is good up to 400]
     // A                        // B                        // C
-    Blottner(0,0) = -0.01646451;   Blottner(0,1) = 0.9561631;  Blottner(0,2) = -14.39603746;  // Camphor
-    Blottner(1,0) = -0.01646099;   Blottner(1,1) =  0.89826157;  Blottner(1,2) = -13.19198667;  // Air
+    //Blottner(0,0) = -0.01646451;   Blottner(0,1) = 0.9561631;  Blottner(0,2) = -14.39603746;  // Camphor
+    //Blottner(1,0) = -0.01646099;   Blottner(1,1) =  0.89826157;  Blottner(1,2) = -13.19198667;  // Air
     
+    // Blottner viscosity coefficients (From LJ-CE curve fit 200K<T<1000K) [LJ is good up to 400]
+    // A                        // B                        // C
+    Blottner(0,0) = 0.05455015 ;   Blottner(0,1) = 0.36747262;  Blottner(0,2) = -13.68305663;  // Camphor T*=0.3-1
+    Blottner(1,0) = -0.09970794;   Blottner(1,1) =  1.90141047;  Blottner(1,2) = -16.19915783;  // Air T*=0.3-4
 
     // Number of electron states
     nElStates[0] = 1;
@@ -412,7 +416,11 @@ CSU2TCLib::CSU2TCLib(const CConfig* config, unsigned short val_nDim, bool viscou
     ElDegeneracy.resize(nSpecies,maxEl) = su2double(1.0);
 
     // Omega(0,0) ---------------------- (From LJ-CE curve fit 0.3<T*<40) [LJ is good up to 400]
-    Omega00(0,1,0) = 0.01285226;  Omega00(0,1,1) = -0.22135677;   Omega00(0,1,2) = 0.90017347;  Omega00(0,1,3) = 86.38373602101797; //Camphor-Air
+    //Omega00(0,1,0) = 0.01285226;  Omega00(0,1,1) = -0.22135677;   Omega00(0,1,2) = 0.90017347;  Omega00(0,1,3) = 86.38373602101797; //Camphor-Air
+    //Omega00(1,0,0) = Omega00(0,1,0);  Omega00(1,0,1) = Omega00(0,1,1);   Omega00(1,0,2) = Omega00(0,1,2);  Omega00(1,0,3) = Omega00(0,1,3); //Symmetric
+    
+    // Omega(0,0) ---------------------- (From LJ-CE curve fit 200K<T<1000K) [LJ is good up to 400]
+    Omega00(0,1,0) = 0.02807057;  Omega00(0,1,1) = -0.40717878;   Omega00(0,1,2) = 1.45371316;  Omega00(0,1,3) = 86.38373602101797; //Camphor-Air
     Omega00(1,0,0) = Omega00(0,1,0);  Omega00(1,0,1) = Omega00(0,1,1);   Omega00(1,0,2) = Omega00(0,1,2);  Omega00(1,0,3) = Omega00(0,1,3); //Symmetric
 
     /*--- Values used in the Sutherland's formula. ---*/

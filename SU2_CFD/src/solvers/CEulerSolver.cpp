@@ -7075,6 +7075,109 @@ void CEulerSolver::BC_Supersonic_Inlet(CGeometry *geometry, CSolver **solver_con
 
 }
 
+void CEulerSolver::BC_Supersonic_Inlet_Dirichlet(CGeometry *geometry, CSolver **solver_container,
+                                       CNumerics *conv_numerics, CNumerics *sour_numerics,
+                                       CConfig *config, unsigned short val_marker) {
+
+ 	const su2double Gas_Constant = config->GetGas_ConstantND();
+  const bool implicit = (config->GetKind_TimeIntScheme() == EULER_IMPLICIT);
+  const auto Marker_Tag = config->GetMarker_All_TagBound(val_marker);
+  const bool tkeNeeded = (config->GetKind_Turb_Model() == TURB_MODEL::SST);
+
+  /*--- Supersonic inlet flow: there are no outgoing characteristics,
+   so all flow variables can be imposed at the inlet.
+   First, retrieve the specified values for the primitive variables. ---*/
+  const su2double Temperature = config->GetInlet_Temperature(Marker_Tag) / config->GetTemperature_Ref();
+  const su2double Pressure = config->GetInlet_Pressure(Marker_Tag) / config->GetPressure_Ref();
+  const auto* Vel = config->GetInlet_Velocity(Marker_Tag);
+
+  su2double Velocity[MAXNDIM] = {0.0};
+  for (unsigned short iDim = 0; iDim < nDim; iDim++)
+    Velocity[iDim] = Vel[iDim] / config->GetVelocity_Ref();
+
+  /*--- Density at the inlet from the gas law ---*/
+  const su2double Density = Pressure / (Gas_Constant * Temperature);
+
+  /*--- Compute the energy from the specified state ---*/
+  const su2double Velocity2 = GeometryToolbox::SquaredNorm(int(MAXNDIM), Velocity);
+  su2double Energy = Pressure / (Density * Gamma_Minus_One) + 0.5 * Velocity2;
+  if (tkeNeeded) Energy += GetTke_Inf();
+  
+  //Set state
+  su2double state[nVar];
+  state[0] = Density;
+  for (unsigned short iDim = 0; iDim < nDim; iDim++){
+  	state[iDim+1] = Density*Velocity[iDim];
+  }
+  state[nVar-1] = Density*Energy;
+  
+	
+  /*--- Loop over all the vertices on this boundary marker ---*/
+  for (unsigned long iVertex = 0; iVertex < geometry->nVertex[val_marker];
+       iVertex++) {
+    const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+
+    /*--- Check if the node belongs to the domain (i.e, not a halo node) ---*/
+    if (!geometry->nodes->GetDomain(iPoint))
+      continue;
+    
+    //Set Fluid model
+    GetFluidModel()->SetTDState_PT(Pressure, Temperature);
+    
+    
+    //Set inlet profile
+    if (config->GetInlet_Profile_From_File()) {
+    	//std::cout << "updating inlet profile" << std::endl;
+    	
+    	//Get interpolated values (note names are reused from total inflow conditions)
+    	const su2double Temperature_local  = Inlet_Ttotal[val_marker][iVertex];
+      const su2double Pressure_local  = Inlet_Ptotal[val_marker][iVertex];
+      const su2double *Velocity_local = Inlet_FlowDir[val_marker][iVertex];
+      
+			/*--- Density at the inlet from the gas law ---*/
+			const su2double Density_local = Pressure_local / (Gas_Constant * Temperature_local);
+
+			/*--- Compute the energy from the specified state ---*/
+			su2double Velocity2_local = 0;
+			for (unsigned short iDim = 0; iDim < nDim; iDim++){
+				Velocity2_local += Velocity_local[iDim]*Velocity_local[iDim];
+			}
+			
+			su2double Energy_local = Pressure_local / (Density_local * Gamma_Minus_One) + 0.5 * Velocity2_local;
+			if (tkeNeeded) Energy_local += GetTke_Inf();
+			
+			//Set state
+      state[0] = Density_local;
+      for (unsigned short iDim = 0; iDim < nDim; iDim++){
+				state[iDim+1] = Density_local*Velocity_local[iDim];
+			}
+			state[nVar-1] = Density_local*Energy_local;
+			
+			GetFluidModel()->SetTDState_PT(Pressure_local, Temperature_local);
+			  
+    }
+
+    /*--- Set various quantities in the solver class ---*/
+    nodes->SetSolutionVec(iPoint,state);
+    //nodes->SetPrimVar(iPoint, GetFluidModel());
+    //nodes->SetSecondaryVar(iPoint, GetFluidModel());
+
+
+    //Enforce zero RHS
+    for (auto iDim = 0u; iDim < nVar; iDim++)
+      LinSysRes(iPoint, iDim) = 0.0;
+    nodes->SetVel_ResTruncError_Zero(iPoint);
+
+    //Remove from implicit LHS too
+    if (implicit) {
+        for (auto iVar = 0u; iVar < nVar; iVar++) {
+          auto total_index = iPoint*nVar+iVar;
+          Jacobian.DeleteValsRowi(total_index);
+        }
+    }
+  }
+}
+
 void CEulerSolver::BC_Supersonic_Outlet(CGeometry *geometry, CSolver **solver_container,
                                         CNumerics *conv_numerics, CNumerics *visc_numerics,
                                         CConfig *config, unsigned short val_marker) {
