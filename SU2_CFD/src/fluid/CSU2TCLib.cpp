@@ -404,6 +404,7 @@ CSU2TCLib::CSU2TCLib(const CConfig* config, unsigned short val_nDim, bool viscou
     // A                        // B                        // C
     Blottner(0,0) = 0.05455015 ;   Blottner(0,1) = 0.36747262;  Blottner(0,2) = -13.68305663;  // Camphor T*=0.3-1
     Blottner(1,0) = -0.09970794;   Blottner(1,1) =  1.90141047;  Blottner(1,2) = -16.19915783;  // Air T*=0.3-4
+    Eucken_Dorrance = true; //Use the Dorrance coefficients for k and Eu correction
 
     // Number of electron states
     nElStates[0] = 1;
@@ -1950,8 +1951,15 @@ void CSU2TCLib::ThermalConductivitiesWBE(){
   Cvves = ComputeSpeciesCvVibEle(Tve);
 
   for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
-    ks[iSpecies] = mus[iSpecies]*(15.0/4.0 + RotationModes[iSpecies]/2.0)*Ru/MolarMass[iSpecies];
-    kves[iSpecies] = mus[iSpecies]*Cvves[iSpecies];
+  	if (!Eucken_Dorrance){
+		  ks[iSpecies] = mus[iSpecies]*(15.0/4.0 + RotationModes[iSpecies]/2.0)*Ru/MolarMass[iSpecies];
+		  kves[iSpecies] = mus[iSpecies]*Cvves[iSpecies];
+		}else{
+			su2double Cp = (5.0/2.0 + RotationModes[iSpecies]/2.0) * Ru/MolarMass[iSpecies];
+			su2double Eu = 0.115 + 0.354*Cp/(Ru/MolarMass[iSpecies]);
+			ks[iSpecies] = (3.7535101515687224*mus[iSpecies]*Ru/MolarMass[iSpecies]) * Eu;
+			kves[iSpecies] = mus[iSpecies]*Cvves[iSpecies];
+		}
   }
 
   /*--- Calculate mixture tr & ve conductivities ---*/

@@ -44,6 +44,8 @@ private:
   vector<unsigned short> nElStates; /*!< \brief Number of electron states. */
 
   C3DIntMatrix Reactions;           /*!</brief reaction map for chemically reacting flows */
+  
+  bool Eucken_Dorrance = false;
 
   vector<su2double>
   ArrheniusCoefficient,             /*!< \brief Arrhenius reaction coefficient */
