@@ -1944,6 +1944,7 @@ void CSU2TCLib::ViscosityWBE(){
 void CSU2TCLib::ThermalConductivitiesWBE(){
 
   vector<su2double> ks, kves;
+  su2double tmp1, tmp2;
 
   ks.resize(nSpecies,0.0);
   kves.resize(nSpecies,0.0);
@@ -1955,10 +1956,32 @@ void CSU2TCLib::ThermalConductivitiesWBE(){
 		  ks[iSpecies] = mus[iSpecies]*(15.0/4.0 + RotationModes[iSpecies]/2.0)*Ru/MolarMass[iSpecies];
 		  kves[iSpecies] = mus[iSpecies]*Cvves[iSpecies];
 		}else{
+			ks[iSpecies] = (3.7535101515687224*mus[iSpecies]*Ru/MolarMass[iSpecies]);
+			kves[iSpecies] = mus[iSpecies]*Cvves[iSpecies];
+		}
+  }
+  
+  if (Eucken_Dorrance){
+		//Recalculate phi with 1.065 correction
+		for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
+		  phis[iSpecies] = 0.0;
+		  for (jSpecies = 0; jSpecies < nSpecies; jSpecies++) {
+		  	su2double coeff = 1.065;
+		  	if (iSpecies==jSpecies){
+		  		coeff = 1.0;
+		  	}
+		  	
+		    tmp1 = 1.0 + sqrt(ks[iSpecies]/ks[jSpecies])*pow(MolarMass[jSpecies]/MolarMass[iSpecies], 0.25);
+		    tmp2 = sqrt(8.0*(1.0+MolarMass[iSpecies]/MolarMass[jSpecies]));
+		    phis[iSpecies] += MolarFracWBE[jSpecies]*tmp1*tmp1/tmp2 * coeff;
+		  }
+		}
+		
+		//Apply Eucken
+		for (iSpecies = 0; iSpecies < nSpecies; iSpecies++) {
 			su2double Cp = (5.0/2.0 + RotationModes[iSpecies]/2.0) * Ru/MolarMass[iSpecies];
 			su2double Eu = 0.115 + 0.354*Cp/(Ru/MolarMass[iSpecies]);
-			ks[iSpecies] = (3.7535101515687224*mus[iSpecies]*Ru/MolarMass[iSpecies]) * Eu;
-			kves[iSpecies] = mus[iSpecies]*Cvves[iSpecies];
+			ks[iSpecies] = ks[iSpecies]*Eu;
 		}
   }
 
