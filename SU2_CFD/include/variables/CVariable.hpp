@@ -54,6 +54,8 @@ protected:
 
   MatrixType Solution;       /*!< \brief Solution of the problem. */
   MatrixType Solution_Old;   /*!< \brief Old solution of the problem R-K. */
+  
+  MatrixType Slope_Limiter;       /*!< \brief Slope limiter */
 
   MatrixType External;       /*!< \brief External (outer) contribution in discrete adjoint multizone problems. */
 
@@ -2297,5 +2299,8 @@ public:
    */
   virtual su2double GetSourceTerm_DispAdjoint(unsigned long iPoint, unsigned long iDim) const { return 0.0; }
   virtual su2double GetSourceTerm_VelAdjoint(unsigned long iPoint, unsigned long iDim) const { return 0.0; }
+  
+  inline su2double GetSlope_Limiter(unsigned long iPoint, unsigned long iVar) const { return Slope_Limiter(iPoint,iVar); }
+  inline void SetSlope_Limiter(unsigned long iPoint, unsigned long iVar, const su2double slope) {Slope_Limiter(iPoint,iVar) = slope; }
 
 };

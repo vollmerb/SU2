@@ -57,6 +57,8 @@ CVariable::CVariable(unsigned long npoint, unsigned long ndim, unsigned long nva
   Solution.resize(nPoint,nVar) = su2double(0.0);
 
   Solution_Old.resize(nPoint,nVar) = su2double(0.0);
+  
+  Slope_Limiter.resize(nPoint,nVar) = su2double(0.0);
 
   if (config->GetTime_Domain())
     Solution_time_n.resize(nPoint,nVar) = su2double(0.0);

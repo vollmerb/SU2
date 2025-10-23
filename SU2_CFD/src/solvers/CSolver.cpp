@@ -1380,6 +1380,10 @@ void CSolver::GetCommCountAndType(const CConfig* config,
       COUNT_PER_POINT  = nVar;
       MPI_TYPE         = COMM_TYPE_DOUBLE;
       break;
+    case SLOPE_LIMITER:
+      COUNT_PER_POINT  = nVar;
+      MPI_TYPE         = COMM_TYPE_DOUBLE;
+      break;
     default:
       SU2_MPI::Error("Unrecognized quantity for point-to-point MPI comms.",
                      CURRENT_FUNCTION);
@@ -1529,6 +1533,10 @@ void CSolver::InitiateComms(CGeometry *geometry,
             for (iVar = 0; iVar < nVar; iVar++)
               bufDSend[buf_offset+iVar] = base_nodes->GetSolution_time_n1(iPoint, iVar);
             break;
+          case SLOPE_LIMITER:
+            for (iVar = 0; iVar < COUNT_PER_POINT; iVar++)
+              bufDSend[buf_offset+iVar] = base_nodes->GetSlope_Limiter(iPoint, iVar);
+            break;
           default:
             SU2_MPI::Error("Unrecognized quantity for point-to-point MPI comms.",
                            CURRENT_FUNCTION);
@@ -1676,6 +1684,10 @@ void CSolver::CompleteComms(CGeometry *geometry,
           case SOLUTION_TIME_N1:
             for (iVar = 0; iVar < nVar; iVar++)
               base_nodes->Set_Solution_time_n1(iPoint, iVar, bufDRecv[buf_offset+iVar]);
+            break;
+          case SLOPE_LIMITER:
+            for (iVar = 0; iVar < COUNT_PER_POINT; iVar++)
+              base_nodes->SetSlope_Limiter(iPoint, iVar, bufDRecv[buf_offset+iVar]);
             break;
           default:
             SU2_MPI::Error("Unrecognized quantity for point-to-point MPI comms.",

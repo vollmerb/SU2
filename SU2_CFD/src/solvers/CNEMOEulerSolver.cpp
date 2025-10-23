@@ -498,6 +498,18 @@ void CNEMOEulerSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_con
   su2double          Cvve_i[MAXNVAR] = {0.0},         Cvve_j[MAXNVAR] = {0.0};
   su2double  Project_Grad_i[MAXNVAR] = {0.0}, Project_Grad_j[MAXNVAR] = {0.0};
   su2double Gamma_i = 0.0, Gamma_j = 0.0;
+  
+  //SOR on the slope limiter
+  bool newMUSLC = true; //use the slope limiter
+  su2double sor = 0.01; //1=no damping, 0=frozen
+  
+  //Freeze after so many iterattions?
+  const unsigned long InnerIter = config->GetInnerIter();
+  const unsigned long LimiterIter = config->GetLimiterIter();
+  //if (InnerIter>1){
+  // sor = 0.001;
+  //}
+  
 
   /*--- Loop over edges and calculate convective fluxes ---*/
   for(unsigned long iEdge = 0; iEdge < geometry->GetnEdge(); iEdge++) {
@@ -507,6 +519,11 @@ void CNEMOEulerSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_con
     /*--- Retrieve node numbers and pass edge normal to CNumerics ---*/
     auto iPoint = geometry->edges->GetNode(iEdge, 0);
     auto jPoint = geometry->edges->GetNode(iEdge, 1);
+    
+    auto hPoint = geometry->edges->GetNode(iEdge, -1);
+    if ((iPoint-hPoint)>1){
+    	hPoint = iPoint;
+    }
 
     numerics->SetNormal(geometry->edges->GetNormal(iEdge));
 
@@ -530,57 +547,134 @@ void CNEMOEulerSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_con
       numerics->SetGamma (nodes->GetGamma(iPoint),  nodes->GetGamma(jPoint));
 
     } else {
+    	if (newMUSLC){
+		  	/*--- High order reconstruction using MUSCL strategy ---*/
+		    su2double Vector_ij[MAXNDIM] = {0.0};
+		    for (iDim = 0; iDim < nDim; iDim++) {
+		      Vector_ij[iDim] = 0.5*(Coord_j[iDim] - Coord_i[iDim]);
+		    }
 
-      /*--- High order reconstruction using MUSCL strategy ---*/
-      su2double Vector_ij[MAXNDIM] = {0.0};
-      for (iDim = 0; iDim < nDim; iDim++) {
-        Vector_ij[iDim] = 0.5*(Coord_j[iDim] - Coord_i[iDim]);
-      }
+		    /*--- Retrieve gradient information ---*/
+		    auto Gradient_i = nodes->GetGradient_Reconstruction(iPoint);
+		    auto Gradient_j = nodes->GetGradient_Reconstruction(jPoint);
 
-      /*--- Retrieve gradient information ---*/
-      auto Gradient_i = nodes->GetGradient_Reconstruction(iPoint);
-      auto Gradient_j = nodes->GetGradient_Reconstruction(jPoint);
+		    /*--- Set and extract limiters ---*/
+		    su2double *Limiter_i = nullptr, *Limiter_j = nullptr;
 
-      /*--- Set and extract limiters ---*/
-      su2double *Limiter_i = nullptr, *Limiter_j = nullptr;
+		    if (limiter && !van_albada){
+		      Limiter_i = nodes->GetLimiter_Primitive(iPoint);
+		      Limiter_j = nodes->GetLimiter_Primitive(jPoint);
+		    }
 
-      if (limiter && !van_albada){
-        Limiter_i = nodes->GetLimiter_Primitive(iPoint);
-        Limiter_j = nodes->GetLimiter_Primitive(jPoint);
-      }
+		    su2double lim_i = 1.0;
+		    su2double lim_j = 1.0;
 
-      su2double lim_i = 2.0;
-      su2double lim_j = 2.0;
+		    for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
+		      Project_Grad_i[iVar] = 0.0; Project_Grad_j[iVar] = 0.0;
 
-      for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
-        Project_Grad_i[iVar] = 0.0; Project_Grad_j[iVar] = 0.0;
+		      for (iDim = 0; iDim < nDim; iDim++) {
+		        Project_Grad_i[iVar] += Vector_ij[iDim]*Gradient_i[iVar][iDim];
+		        Project_Grad_j[iVar] -= Vector_ij[iDim]*Gradient_j[iVar][iDim];
+		      }
 
-        for (iDim = 0; iDim < nDim; iDim++) {
-          Project_Grad_i[iVar] += Vector_ij[iDim]*Gradient_i[iVar][iDim];
-          Project_Grad_j[iVar] -= Vector_ij[iDim]*Gradient_j[iVar][iDim];
-        }
+		      if (limiter) {
+		        if (van_albada) {
+		          su2double V_ij = V_j[iVar] - V_i[iVar];
+		          su2double va_lim_i = LimiterHelpers<>::vanAlbadaFunction(Project_Grad_i[iVar], V_ij, EPS);
+		          su2double va_lim_j = LimiterHelpers<>::vanAlbadaFunction(-Project_Grad_j[iVar], V_ij, EPS);
+		          lim_i = min(lim_i, va_lim_i);
+		          lim_j = min(lim_j, va_lim_j);
+		        } else {
+		          lim_i = min(lim_i, Limiter_i[iVar]); //minimum over all primitive variables
+		          lim_j = min(lim_j, Limiter_j[iVar]);
+		        }
+		      } else {
+		        lim_i = lim_j = 0.5;
+		      }
+		    }
+		    su2double lim_ij = min(lim_i, lim_j); //minimum over neigbors
+		    //lim_ij = 0.5*(lim_i + lim_j);
+		    
+		    //SOR slope
+		    su2double filt = 0.9;
+		    //su2double lim_ij_prev = nodes->GetSlope_Limiter(iPoint, 0);
+		    //su2double lim_ij_prev = filt*(nodes->GetSlope_Limiter(iPoint, 0)) + 0.5*(1.0-filt)*(nodes->GetSlope_Limiter(jPoint, 0) + nodes->GetSlope_Limiter(hPoint, 0));
+		    su2double lim_ij_prev = filt*(nodes->GetSlope_Limiter(iPoint, 0)) + (1.0-filt)*(nodes->GetSlope_Limiter(jPoint, 0));
+		    lim_ij = sor*lim_ij + (1.0-sor)*lim_ij_prev;
+		    
+		    //What if we discretize?
+		    //if (lim_ij<0.9) {
+		   // 	lim_ij = 0.0;
+		    //}else if (lim_ij<0.9){
+		    //	lim_ij = 0.5;
+		    //}else{
+		    //	lim_ij = 1.0;
+		    //}
+		    
+		    
+		    //Save slope
+		    nodes->SetSlope_Limiter(iPoint, 0, lim_ij);
+		    //Is iPoint unique?
+		    
+				//Primitive variables: [rho1, ..., rhoNs, T, Tve, u, v, w, P, rho, h, a, rhoCvtr, rhoCvve]
+		    for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
+		      Primitive_i[iVar] = V_i[iVar] + lim_ij*Project_Grad_i[iVar];
+		      Primitive_j[iVar] = V_j[iVar] + lim_ij*Project_Grad_j[iVar];
+		    }
+    	
+    	} else{
 
-        if (limiter) {
-          if (van_albada) {
-            su2double V_ij = V_j[iVar] - V_i[iVar];
-            su2double va_lim_i = LimiterHelpers<>::vanAlbadaFunction(Project_Grad_i[iVar], V_ij, EPS);
-            su2double va_lim_j = LimiterHelpers<>::vanAlbadaFunction(-Project_Grad_j[iVar], V_ij, EPS);
-            lim_i = min(lim_i, va_lim_i);
-            lim_j = min(lim_j, va_lim_j);
-          } else {
-            lim_i = min(lim_i, Limiter_i[iVar]);
-            lim_j = min(lim_j, Limiter_j[iVar]);
-          }
-        } else {
-          lim_i = lim_j = 1.0;
-        }
-      }
-      su2double lim_ij = min(lim_i, lim_j);
+		    /*--- High order reconstruction using MUSCL strategy ---*/
+		    su2double Vector_ij[MAXNDIM] = {0.0};
+		    for (iDim = 0; iDim < nDim; iDim++) {
+		      Vector_ij[iDim] = 0.5*(Coord_j[iDim] - Coord_i[iDim]);
+		    }
 
-      for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
-        Primitive_i[iVar] = V_i[iVar] + lim_ij*Project_Grad_i[iVar];
-        Primitive_j[iVar] = V_j[iVar] + lim_ij*Project_Grad_j[iVar];
-      }
+		    /*--- Retrieve gradient information ---*/
+		    auto Gradient_i = nodes->GetGradient_Reconstruction(iPoint);
+		    auto Gradient_j = nodes->GetGradient_Reconstruction(jPoint);
+
+		    /*--- Set and extract limiters ---*/
+		    su2double *Limiter_i = nullptr, *Limiter_j = nullptr;
+
+		    if (limiter && !van_albada){
+		      Limiter_i = nodes->GetLimiter_Primitive(iPoint);
+		      Limiter_j = nodes->GetLimiter_Primitive(jPoint);
+		    }
+
+		    su2double lim_i = 2.0;
+		    su2double lim_j = 2.0;
+
+		    for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
+		      Project_Grad_i[iVar] = 0.0; Project_Grad_j[iVar] = 0.0;
+
+		      for (iDim = 0; iDim < nDim; iDim++) {
+		        Project_Grad_i[iVar] += Vector_ij[iDim]*Gradient_i[iVar][iDim];
+		        Project_Grad_j[iVar] -= Vector_ij[iDim]*Gradient_j[iVar][iDim];
+		      }
+
+		      if (limiter) {
+		        if (van_albada) {
+		          su2double V_ij = V_j[iVar] - V_i[iVar];
+		          su2double va_lim_i = LimiterHelpers<>::vanAlbadaFunction(Project_Grad_i[iVar], V_ij, EPS);
+		          su2double va_lim_j = LimiterHelpers<>::vanAlbadaFunction(-Project_Grad_j[iVar], V_ij, EPS);
+		          lim_i = min(lim_i, va_lim_i);
+		          lim_j = min(lim_j, va_lim_j);
+		        } else {
+		          lim_i = min(lim_i, Limiter_i[iVar]);
+		          lim_j = min(lim_j, Limiter_j[iVar]);
+		        }
+		      } else {
+		        lim_i = lim_j = 1.0;
+		      }
+		    }
+		    su2double lim_ij = min(lim_i, lim_j);
+
+		    for (iVar = 0; iVar < nPrimVarGrad; iVar++) {
+		      Primitive_i[iVar] = V_i[iVar] + lim_ij*Project_Grad_i[iVar];
+		      Primitive_j[iVar] = V_j[iVar] + lim_ij*Project_Grad_j[iVar];
+		    }
+      } //END MUSCL choice
 
       /*--- Check for non-physical solutions after reconstruction. If found, use the
        cell-average value of the solution. This is a locally 1st order approximation,
@@ -652,6 +746,10 @@ void CNEMOEulerSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_con
     }
     END_SU2_OMP_SAFE_GLOBAL_ACCESS
   }
+  
+  /*--- MPI parallelization ---*/
+  InitiateComms(geometry, config, SLOPE_LIMITER);
+  CompleteComms(geometry, config, SLOPE_LIMITER);
 }
 
 su2double CNEMOEulerSolver::ComputeConsistentExtrapolation(CNEMOGas *fluidmodel, unsigned short nSpecies, su2double *V,

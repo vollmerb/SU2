@@ -2459,6 +2459,7 @@ enum MPI_QUANTITIES {
   MESH_DISPLACEMENTS   ,  /*!< \brief Mesh displacements at the interface. */
   SOLUTION_TIME_N      ,  /*!< \brief Solution at time n. */
   SOLUTION_TIME_N1     ,  /*!< \brief Solution at time n-1. */
+  SLOPE_LIMITER        ,  /*!< \brief Solution at time n-1. */
 };
 
 /*!
