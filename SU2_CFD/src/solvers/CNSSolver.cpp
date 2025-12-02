@@ -578,6 +578,92 @@ void CNSSolver::BC_HeatFlux_Wall_Generic(const CGeometry* geometry, const CConfi
 
 }
 
+
+void CNSSolver::BC_HeatFlux_Wall_Blowing(CGeometry *geometry, CSolver **solver_container,
+                                       CNumerics *conv_numerics, CNumerics *sour_numerics,
+                                       CConfig *config, unsigned short val_marker) {
+
+  const bool implicit = (config->GetKind_TimeIntScheme() == EULER_IMPLICIT);
+  const su2double Temperature_Ref = config->GetTemperature_Ref();
+  const su2double Velocity_Ref = config->GetVelocity_Ref();
+
+  /*--- Loop over boundary points ---*/
+  SU2_OMP_FOR_DYN(OMP_MIN_SIZE)
+  for (auto iVertex = 0u; iVertex < geometry->nVertex[val_marker]; iVertex++) {
+
+    const auto iPoint = geometry->vertex[val_marker][iVertex]->GetNode();
+    const auto Point_Normal = geometry->vertex[val_marker][iVertex]->GetNormal_Neighbor();
+    su2double* Normal = geometry->vertex[val_marker][iVertex]->GetNormal();
+    su2double Area = GeometryToolbox::Norm(nDim, Normal);
+    
+    /*--- Compute distance between wall & normal neighbor ---*/
+    const auto Coord_i = geometry->nodes->GetCoord(iPoint);
+    const auto Coord_j = geometry->nodes->GetCoord(Point_Normal);
+    su2double dist_ij = GeometryToolbox::Distance(nDim, Coord_i, Coord_j);
+		
+		//Get heat-flux and mass-flux
+		su2double hflux = 0.0;
+		su2double mflux = 0.0;
+		if (config->GetMarker_All_PyCustom(val_marker)) {
+			hflux = geometry->GetCustomBoundaryHeatFlux(val_marker, iVertex);
+    	mflux = geometry->GetCustomBoundaryVelocity(val_marker, iVertex);
+    }
+    
+    //Set wall temperature from heat-flux
+    su2double kappa_old = nodes->GetThermalConductivity(iPoint);
+    su2double dTdn = -hflux/kappa_old;
+    su2double Twall = nodes->GetTemperature(Point_Normal) - dTdn*dist_ij; //For now, assume neighbor is normal
+
+    //Set wall-normal velocity
+    su2double density_old = nodes->GetDensity(iPoint);
+    su2double uwall[nDim] = {0.0};
+    su2double Vn = mflux/density_old;
+    for (auto iVar = 0; iVar < nDim; iVar++) {
+    	uwall[iVar] = Vn*Normal[iVar]/Area;
+    }
+		
+			    
+    
+    //Set thermodynamic state
+    su2double pressure = nodes->GetPressure(Point_Normal); //ZPG
+    su2double temperature = Twall; //isothermal
+    GetFluidModel()->SetTDState_PT(pressure, temperature);
+    su2double density = GetFluidModel()->GetDensity();
+    su2double energy = GetFluidModel()->GetStaticEnergy();
+    
+    //add kinetic energy
+    su2double sqvel = 0.0;
+		for (unsigned short iDim = 0; iDim < nDim; iDim++){
+		  sqvel += uwall[iDim]*uwall[iDim];
+		}
+		energy += 0.5*sqvel;
+
+		
+		//Set the state vector
+		su2double state[nVar] = {0.0};
+    state[0] = density;
+    for (auto iVar = 0; iVar < nDim; iVar++) {
+    	state[iVar + 1] = density*uwall[iVar];
+    }
+    state[nDim+1] = density*energy;
+    nodes->SetSolutionVec(iPoint,state);
+
+    //Enforce zero RHS
+    for (auto iDim = 0u; iDim < nVar; iDim++)
+      LinSysRes(iPoint, iDim) = 0.0;
+    nodes->SetVel_ResTruncError_Zero(iPoint);
+
+    //Remove from implicit LHS too
+    if (implicit) {
+        for (auto iVar = 0u; iVar < nVar; iVar++) {
+          auto total_index = iPoint*nVar+iVar;
+          Jacobian.DeleteValsRowi(total_index);
+        }
+    }
+  }
+}
+
+
 su2double CNSSolver::GetCHTWallTemperature(const CConfig* config, unsigned short val_marker,
                                            unsigned long iVertex, su2double thermal_conductivity,
                                            su2double dist_ij, su2double There,

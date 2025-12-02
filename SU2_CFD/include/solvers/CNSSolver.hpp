@@ -103,7 +103,9 @@ private:
                                 const CConfig *config,
                                 unsigned short val_marker,
                                 unsigned short kind_boundary);
-
+                                
+	void BC_HeatFlux_Wall_Blowing(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics,
+                        CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) override;
   /*!
    * \brief Compute the viscous contribution for a particular edge.
    * \param[in] iEdge - Edge for which the flux and Jacobians are to be computed.

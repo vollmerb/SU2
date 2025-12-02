@@ -65,7 +65,7 @@ void CParaviewFileWriter::Write_Data(string val_filename){
   if (rank == MASTER_NODE) {
 
     Paraview_File.open(val_filename.c_str(), ios::out);
-    Paraview_File.precision(6);
+    Paraview_File.precision(12);
     Paraview_File << "# vtk DataFile Version 3.0\n";
     Paraview_File << "vtk output\n";
     Paraview_File << "ASCII\n";

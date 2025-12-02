@@ -501,7 +501,7 @@ void CNEMOEulerSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_con
   
   //SOR on the slope limiter
   bool newMUSLC = true; //use the slope limiter
-  su2double sor = 0.01; //1=no damping, 0=frozen
+  su2double sor = 1.0; //1=no damping, 0=frozen
   
   //Freeze after so many iterattions?
   const unsigned long InnerIter = config->GetInnerIter();
@@ -588,8 +588,14 @@ void CNEMOEulerSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_con
 		          lim_i = min(lim_i, Limiter_i[iVar]); //minimum over all primitive variables
 		          lim_j = min(lim_j, Limiter_j[iVar]);
 		        }
+		        
 		      } else {
-		        lim_i = lim_j = 0.5;
+		        lim_i = lim_j = 0.9;
+		        
+		        //if (Coord_i[1]<0.001) {
+		        //	lim_i = lim_j = 1.0;
+		        //}
+		        
 		      }
 		    }
 		    su2double lim_ij = min(lim_i, lim_j); //minimum over neigbors
@@ -610,6 +616,24 @@ void CNEMOEulerSolver::Upwind_Residual(CGeometry *geometry, CSolver **solver_con
 		    //}else{
 		    //	lim_ij = 1.0;
 		    //}
+		    
+		    //smooth region
+		    double lamda = 0.006421032;
+		    double k = 500;
+				double dx=lamda*2;
+				double x0 = 0.080222208-dx;
+				double x1 = 0.080222208+dx;
+				double phi_smooth = 0.5 * (std::tanh(k*(Coord_i[0] - x0)) - std::tanh(k*(Coord_i[0] - x1)));
+				lim_ij = phi_smooth;
+				
+				if (Coord_i[1]>0.001) {
+		     	lim_ij = 0.0;
+		     }
+		    
+		     //if (Coord_i[1]>0.001 || Coord_i[0]<0.06 || Coord_i[0]>0.1) {
+		     //	lim_i = lim_j = lim_ij = 0.0;
+		     //}
+		        
 		    
 		    
 		    //Save slope
